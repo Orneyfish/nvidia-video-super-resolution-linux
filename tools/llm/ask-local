@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""Ask a local Ollama model one question and print the answer.
+
+Usage: ask-local [--model M] [--system S] [--file F ...] [--num-ctx N] "prompt"
+       cmd | ask-local "summarise this"     (stdin is appended when piped)
+
+The model is unloaded right after answering (keep_alive=0) because Ollama
+shares the 8 GB GPU with the CUDA super-resolution work.
+"""
+import argparse
+import json
+import sys
+import urllib.error
+import urllib.request
+
+HOST = "http://localhost:11434"
+DEFAULT_MODEL = "qwen2.5-coder:7b-64k"
+
+
+def main() -> int:
+    p = argparse.ArgumentParser()
+    p.add_argument("prompt")
+    p.add_argument("--model", default=DEFAULT_MODEL)
+    p.add_argument("--system", default="")
+    p.add_argument("--file", action="append", default=[])
+    p.add_argument("--num-ctx", type=int, default=32768)
+    a = p.parse_args()
+
+    parts = [a.prompt]
+    for path in a.file:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            parts.append(f"\n--- {path} ---\n{f.read()}")
+    if not sys.stdin.isatty():
+        parts.append("\n--- stdin ---\n" + sys.stdin.read())
+
+    body = {
+        "model": a.model,
+        "prompt": "\n".join(parts),
+        "system": a.system,
+        "stream": False,
+        "keep_alive": 0,
+        "options": {"num_ctx": a.num_ctx, "temperature": 0.2},
+    }
+    req = urllib.request.Request(
+        f"{HOST}/api/generate",
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=600) as r:
+            print(json.load(r)["response"])
+    except (urllib.error.URLError, TimeoutError) as e:
+        print(f"ask-local: cannot reach Ollama at {HOST} ({e}); "
+              "start it with `ollama serve`", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

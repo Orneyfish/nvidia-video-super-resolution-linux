@@ -1,0 +1,9 @@
+.venv/
+build/
+*.so
+*.whl
+__pycache__/
+nvidia-sdk/
+models/
+*.engine
+*.plan
