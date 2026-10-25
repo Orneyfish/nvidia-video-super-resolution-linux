@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>NVVSR mpv handoff: options</title>
+  <style>
+    body { font: 14px/1.5 system-ui, sans-serif; margin: 24px; max-width: 640px; color: #222; }
+    h1 { font-size: 18px; margin: 0 0 12px; }
+    textarea { width: 100%; height: 180px; font: 13px monospace; box-sizing: border-box; }
+    .row { margin: 12px 0; }
+    button { margin-right: 8px; padding: 4px 12px; }
+    #status { min-height: 1.5em; margin-top: 8px; }
+    .err { color: #b00020; }
+    .ok { color: #1b5e20; }
+    small { color: #555; }
+  </style>
+</head>
+<body>
+  <h1>NVVSR mpv handoff</h1>
+  <div class="row">
+    <label><input type="checkbox" id="enabled"> Hand fullscreen videos to mpv (super resolution)</label>
+  </div>
+  <div class="row">
+    <label for="allowlist">Allowlisted sites (one hostname per line; <code>*.example.com</code> matches subdomains)</label>
+    <textarea id="allowlist" spellcheck="false"></textarea>
+    <small>Saving asks Chrome for access to any site you add. Netflix, Disney+, Prime Video, Hulu, Max and similar
+      DRM-only sites are never handed off, whatever is listed here.</small>
+  </div>
+  <div class="row">
+    <button id="save">Save</button>
+    <button id="reset">Reset to defaults</button>
+    <button id="check">Check the native host</button>
+  </div>
+  <div id="status" role="status"></div>
+  <script src="lib/logic.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

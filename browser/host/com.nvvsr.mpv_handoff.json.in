@@ -1,0 +1,9 @@
+{
+  "name": "com.nvvsr.mpv_handoff",
+  "description": "NVVSR: hands fullscreen web videos to mpv with RTX super resolution",
+  "path": "@HOST_PATH@",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://dfdalgcnmhhegbimecinmffikmkdmjee/"
+  ]
+}

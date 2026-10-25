@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "NVVSR mpv handoff",
+  "version": "0.1.0",
+  "description": "Hands fullscreen web videos to mpv with NVIDIA video super resolution. Needs the nvvsr native host.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu6cCM5bQS2wjy3eLvhD+2PxoKZxZWqGIcGv7Nbh3HpXwts6b1r+E+kg/WKAodHdQJcZ404MmgNj138byqQ492KXuzL6OPeGz615zkbPtPNS3wHMODLGMnFhFVN/RFwk6YBTu3/wXvqRUFQ5t4AJCtbY3ITY6IPbGQNltuFjJcBP7Jsua8dbdKoIs/kFAaAFjXgNVX1Fq+GVZM6q2sYWydUnvF4V1/dczEghYD7ZeADQOt9/fQG8t/JpjLRDs5j2B0MXYJsAkXRAPkmSbUD78OJSLEJ4I93OX2GLHBUTxZzU2KQc/76ny/28JGyfo0qAzg9+hF3KxWoKoFV5IobZtkQIDAQAB",
+  "permissions": [
+    "nativeMessaging",
+    "storage",
+    "contextMenus",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://youtube.com/*",
+    "*://www.youtube.com/*",
+    "*://m.youtube.com/*",
+    "*://youtu.be/*",
+    "*://vimeo.com/*",
+    "*://twitch.tv/*"
+  ],
+  "optional_host_permissions": [
+    "*://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "NVVSR mpv handoff"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://youtube.com/*",
+        "*://www.youtube.com/*",
+        "*://m.youtube.com/*",
+        "*://youtu.be/*",
+        "*://vimeo.com/*",
+        "*://twitch.tv/*"
+      ],
+      "js": [
+        "lib/logic.js",
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}
