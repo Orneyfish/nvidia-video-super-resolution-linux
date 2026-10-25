@@ -1,0 +1,7 @@
+/* Export only the VapourSynth plugin entry point. */
+{
+  global:
+    VapourSynthPluginInit2;
+  local:
+    *;
+};
