@@ -1,0 +1,15 @@
+<!doctype html><meta charset=utf-8><title>pending</title>
+<script>
+(async () => {
+  let r;
+  try {
+    if (!navigator.gpu) r = "no navigator.gpu";
+    else {
+      const a = await navigator.gpu.requestAdapter();
+      if (!a) r = "requestAdapter -> null";
+      else { const i = a.info || (a.requestAdapterInfo ? await a.requestAdapterInfo() : {}); r = JSON.stringify({vendor:i.vendor, arch:i.architecture, device:i.device, desc:i.description, fallback:a.isFallbackAdapter, features:[...a.features].slice(0,6)}); }
+    }
+  } catch (e) { r = "error " + e; }
+  document.title = "RESULT:" + r;
+})();
+</script>
