@@ -1,0 +1,7 @@
+/* Export only the public C API. */
+{
+  global:
+    nvvsr_*;
+  local:
+    *;
+};

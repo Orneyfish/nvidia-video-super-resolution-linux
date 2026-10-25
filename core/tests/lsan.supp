@@ -1,0 +1,13 @@
+# LeakSanitizer suppressions for the ctest suite (used only when built with -fsanitize=address).
+# One-time initialisation allocations inside NVIDIA's user-space libraries (cuInit, NGX runtime,
+# the VFX SDK) are reported at process exit: ~70 KB per process, none allocated by libnvvsr.
+# Known limit: a leak whose stack passes through one of these libraries is also hidden, e.g. an
+# SDK object we forgot to destroy; the VRAM/RSS growth checks in test_stress cover that case.
+# NVIDIA runtime code unpacked into memfd files (shows as /proc/self/fd/N): the SDK leaks per model load.
+leak:/proc/self/fd/
+leak:libcuda.so
+leak:libnvidia-ngx
+leak:libnvngxruntime
+leak:libVideoFX
+leak:libnvVFX
+leak:libNVCVImage
