@@ -1,0 +1,18 @@
+[Icon Theme]
+Name=NV Control Icons
+Comment=Icons bundled with NV Control
+Directories=scalable/actions,scalable/apps
+
+[scalable/actions]
+Size=16
+Context=Actions
+Type=Scalable
+MinSize=8
+MaxSize=512
+
+[scalable/apps]
+Size=128
+Context=Applications
+Type=Scalable
+MinSize=16
+MaxSize=512
