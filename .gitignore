@@ -7,3 +7,4 @@ nvidia-sdk/
 models/
 *.engine
 *.plan
+third_party/nvidia-vfx/

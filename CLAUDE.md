@@ -1,10 +1,10 @@
 # NVIDIA video super resolution for Linux
 
-AI upscaling (NVIDIA VFX SDK, Video Super Resolution) of video played fullscreen in **mpv, VLC and Chrome**, running on the RTX GPU. Linux has no driver-level RTX VSR, so one shared core is plugged into each player and turns on automatically in fullscreen. Full plan: `~/.claude/plans/i-want-to-implement-composed-bonbon.md`.
+AI upscaling (NVIDIA VFX SDK, Video Super Resolution) of video played fullscreen in **mpv, VLC and (planned) Chrome**, running on the RTX GPU. Linux has no driver-level RTX VSR, so one shared core is plugged into each player and turns on automatically in fullscreen. Full plan: `~/.claude/plans/i-want-to-implement-composed-bonbon.md`.
 
 ```
 decoded frame → libnvvsr (YUV→RGBA, NvVFX VSR, RGBA→planar) → display-sized frame
-   ▲ VapourSynth plugin (mpv)   ▲ VLC 3 vout wrapper   ▲ Chrome: extension → separate mpv window (REJECTED by the user, see below)
+   ▲ VapourSynth plugin (mpv)   ▲ VLC 3 vout wrapper   ▲ Chrome: in-page WebGPU extension (prototype in webgpu/)
 ```
 
 ## Hardware facts
@@ -40,35 +40,47 @@ Gate passed: the core is C++ and dlopens the wheel's libs; Maxine headers are ve
 - Tests: `vlc/tests/run.sh [--cage] [--bench]` (157 checks in the agent's run: frames byte-identical to libnvvsr, 720p vs bicubic 34.9 dB, fallbacks, gating, 720p30/1080p60 real time with 0 late/lost, SR ~5 ms/frame, ~420 MiB VRAM). Test harness runs VLC with DISPLAY/WAYLAND_DISPLAY/D-Bus unset: `--vout=dummy` is NOT headless on a desktop session (two early runs flashed a window).
 - Limits: subtitles/OSD are upscaled with the video; paused video re-runs SR each ~80 ms redisplay; 10-bit/4:2:2/4:4:4 pass through; a failed probe is cached per process; GPU -> host -> display upload ~5.5 MB per 1440p frame (a device-pointer or GL-interop output would avoid it).
 
-## Phase 5 outcome (`browser/`, Chrome -> mpv handoff: WORKS, but the user REJECTED the design: no separate window; wants SR inside the browser, ideally system/driver-level. See memory user-direction-roadmap)
-- MV3 extension (`browser/extension/`, ID pinned by `key`, public key only) + Python-stdlib native host (`browser/host/nvvsr_host.py`, name `com.nvvsr.mpv_handoff`). On fullscreen of a video that would be upscaled (height < screen*dpr, >= 360, no DRM) on an allowlisted site it pauses, exits page fullscreen, sends {url,time,title}; the host starts the private mpv fullscreen at that time (`--script=mpv/vsr.lua`, `--` before the URL, ytdl format capped at `NVVSR_PANEL_H`), and returns the last `time-pos` when mpv exits; the page seeks there. Any host failure restores ordinary Chrome fullscreen. DRM sites cannot be handed off.
-- Host security (all tested): http/https only (plain ASCII, no userinfo), URL after `--`, no shell, strict schema, 1 MiB frame limit, time 0..7 days, title cleaned, one handoff at a time (flock), private 0700/0600 socket, redacted rotating log; extension trusts only its own content script; max 1 handoff per 3 s per tab. Known soft spot: the host does not itself allowlist hostnames (the extension does).
-- Tests: `browser/tests/run.sh` (53 Python incl. real headless mpv, 37 node). `content.js`/`background.js`/`options.js` are only lint-checked until the first real Chrome run. Host manifest is NOT installed anywhere (Phase 6: `@HOST_PATH@` substitution into `~/.config/google-chrome/NativeMessagingHosts/`, a directory that already holds another extension's manifest - never touch that file).
-- Open user decision: the extension asks for optional host permission `*://*/*` (Chrome prompts per site when the user adds one to the allowlist) vs a fixed site list.
-- **Real Chrome run on YouTube (2026-10-25, Chrome 156, Hyprland):** the whole chain works (click -> extension -> host -> private mpv at the page's time -> `vsr.lua` -> SR -> quit -> page seeks back, paused). Measured on Sintel (AV1 2048x872, 24 fps): SR on at `auto/medium`, output 2560x1090, 0 drops, GPU ~880 MiB / 12 %; host replied the exact final time (337.25 s). Findings: (1) **YouTube and Vimeo refuse anonymous yt-dlp** ("Sign in to confirm you're not a bot"; other player clients list formats but googlevideo returns 403), so the host needs the user's Chrome cookies: `~/.config/nvvsr/handoff.json` = `{"use_chrome_cookies": true, "cookies_browser": "chrome+gnomekeyring"}` (plain `chrome` decrypts only 260 of 643 cookies because this Chrome runs with `--password-store=gnome-libsecret`; the new `cookies_browser` setting is validated `browser[+keyring]`, env `NVVSR_COOKIES_BROWSER`). User-approved. (2) Hyprland (`on_focus_under_fullscreen = 2`) demoted mpv's `--fullscreen` to a tiled window while Chrome was still leaving fullscreen: the host's `IpcWatcher` now re-asserts fullscreen over the socket (max 4 times in the first 8 s, never after mpv was fullscreen once, off in test mode). (3) YouTube's player resumes playback and may re-enter fullscreen after the extension's single pause/exit: `content.js` now keeps the page paused and windowed while mpv runs and, on failure, restores fullscreen and playback. After editing the extension the user must click reload on chrome://extensions and reload the tab. (4) mpv started with the user's config has `hwdec=no` (software AV1 decode); fine at 24 fps, a host option for `--hwdec=auto-copy-safe` may be wanted for 4K60.
-- Installed for this test (user-approved, undo steps in the project memory): `~/.config/google-chrome/NativeMessagingHosts/com.nvvsr.mpv_handoff.json`, `~/.config/nvvsr/{libdir,handoff.json}`, one line in `~/.config/vapoursynth/vapoursynth.toml` (backup `.bak-nvvsr`).
+## Removed: Chrome -> mpv handoff (was `browser/`, removed 2026-10-26)
+- It worked end to end (YouTube, Chrome 156) but the user rejected the design (a separate mpv window) and the Python rule removed its host. Code and findings are in git history (`49d2488` and the commit before this note). Lessons kept: YouTube/Vimeo refuse anonymous yt-dlp (cookies needed); Hyprland (`on_focus_under_fullscreen = 2`) demotes a new window's `--fullscreen` while another window leaves fullscreen; players such as YouTube's resume playback after a single `pause()`. The handoff's home files (host manifest, `handoff.json`, log) were deleted; the other extension's manifest in `~/.config/google-chrome/NativeMessagingHosts/` was never touched.
 
 ## Browser SR spike (2026-10-25; scripts and details in `tools/spikes/browser-sr/`)
 - The user rejected the separate-mpv-window handoff and wants SR inside the browser, ideally system-level. Measured with Chrome 156 on native Wayland in a headless `cage`: Chrome submits only **window-sized** dmabuf buffers (even with HW-decode/overlay-delegation flags the one subsurface carries a full-window buffer), so a compositor/driver hook cannot see source-resolution video -> not viable for Chrome now (HW decode was not confirmed active in that run).
 - **WebGPU works in this Chrome under native Wayland and picks the NVIDIA GPU** (`vendor: nvidia, architecture: ampere`). So an in-page route (extension content script on every site: `requestVideoFrameCallback` + `importExternalTexture` -> WebGPU upscale -> canvas over the video, audio untouched) is feasible with no second window and no per-site allowlist, but it runs a WebGPU model, not NVIDIA's VSR network (whose weights live in libnvidia-ngx). NVIDIA's VSR in-page would need a local daemon and ~0.5 GB/s of frame copies.
 
 ## Layout
-`core/` libnvvsr (C++17, no nvcc for 8-bit: colour conversion via `NvCVImage_Transfer`; `core/include/nvvsr.h` is the **only** interface front-ends may use) · `vapoursynth/` · `mpv/` · `vlc/` · `browser/` · `tools/` (`check_env.py`, `bench_vfx.py`, `compare.sh`, `llm/ask-local`) · `install/`.
+`core/` libnvvsr (C++17, no nvcc for 8-bit: colour conversion via `NvCVImage_Transfer`; `core/include/nvvsr.h` is the **only** interface front-ends may use) · `vapoursynth/` · `mpv/` · `vlc/` · `webgpu/` (in-page upscaler prototype) · `tools/` (`libdir.sh`, `llm/ask-local`, `spikes/`) · `third_party/nvidia-vfx/` (unzipped wheel libraries, gitignored) · `install/` (user-level installer, `build-mpv-vsr.sh`, tests) · `panel/` (GTK control panel) · `docs/install-layout.md` (prefix layout + install.json schema).
 
 ## Commands
 - Build: `cmake -B build && cmake --build build`; test: `ctest --test-dir build`
-- Bench: `.venv/bin/python tools/bench_vfx.py` (unload Ollama first, see below)
+- Libraries for tests and benches: `export NVVSR_LIBDIR=$(tools/libdir.sh)` (the unzipped nvidia-vfx wheel; unload Ollama before any GPU test, see below)
 - Ask a local model: `tools/llm/ask-local --model qwen2.5-coder:7b-64k "prompt" --file f.c`
+- Install / remove (user level, no sudo; see README.md): `install/install.sh check|install|uninstall|status [--dry-run] [--yes]`; installer tests (GPU-free): `install/tests/run.sh`
 
 ## Rules
-- Never commit or redistribute NVIDIA SDK/model binaries (they are gitignored).
+- **No Python (user rule, 2026-10-26): all project code is C or C++** (shell for glue; JS/WGSL only where the browser forces it; Lua for mpv's script until replaced). That includes tests, tools and one-liners: no `python3 -c`, no pip, no venv. Two unavoidable third-party exceptions: the NVIDIA libraries ship only inside the `nvidia-vfx` Python wheel (we only unzip it) and mpv's video-filter hook is VapourSynth, which needs a tiny `.vpy` stub (all logic lives in the C++ plugin). Put this rule in every agent brief.
+- Never commit or redistribute NVIDIA SDK/model binaries (they are gitignored, incl. `third_party/nvidia-vfx/`).
 - Every failure path falls back to pass-through; the player must never crash or stall.
 - Confirm with the user before pacman/system changes. Commits are authorised (user, 2026-10-25): per-component commits of verified work, never push, never stage `mempalace.yaml` / `.claude/.mempalace_setup`; git identity is not configured, use `git -c user.name=... -c user.email=...` per commit.
 - Per-frame budget at 60 fps is 16.6 ms; target SR ≤ 8 ms at the default quality.
 
+## Coding style (ponytail)
+
+Rules adapted from ponytail (https://github.com/dietrichgebert/ponytail, MIT, AGENTS.md): write the smallest change that fully solves the task.
+
+- Before writing, read the task and the code it touches. List every place the change must reach (callers, tests, fixtures, config, exports) and what it could break for users. That is scope; extra features are not.
+- Take the first option that fully works: (1) does it need to exist? skip unrequested features and options and name them in one line; (2) already in this codebase? use it the way the surrounding code does; (3) standard library or platform feature; (4) an installed dependency (never add one for a few lines); (5) one line a reader gets at a glance; (6) otherwise the minimum code that works.
+- Be lazy about the solution, never about the change: finish every part the task needs, including the callers, tests and fixtures it breaks.
+- No abstraction, wrapper, option, config or "for later" code nobody asked for. Deletion beats addition. Keep the existing structure and conventions. The shortest working diff wins once you know everything it must touch.
+- Comment only the why the code cannot show, in one line. A known shortcut gets `shortcut: <the limit>, <when to upgrade>`.
+- Bug fix: grep every caller of the function you touch, then fix the root cause once in shared code. Code you move or merge keeps its error handling and validation.
+- New non-trivial logic (a branch, a loop, a parser, money, security, a whole new script or app) leaves one small test or an assert-based self-check.
+- Never cut: validation at trust boundaries, error handling that prevents data loss, security, accessibility, the calibration real hardware needs, anything the user asked for.
+- End each reply with one or two lines: what you skipped or did not check, and any risk.
+- Background agents get these rules in their brief.
+
 ## Model distribution
-- **Haiku**: mechanical work (installs, checks, benches, tests, log reading, docs, packaging, simple JS/Python).
-- **Sonnet**: real engineering (CUDA/C++ core, VapourSynth plugin, VLC C module, mpv Lua) and orchestration.
+- **Haiku**: mechanical work (installs, checks, benches, tests, log reading, docs, packaging, simple JS and shell).
+- **Sonnet**: real engineering (CUDA/C++ core, VapourSynth plugin, mpv Lua) and orchestration. VLC upkeep is Haiku; a genuinely hard VLC change can be given Sonnet for that one spawn.
 - **Opus is off limits.** Only the `architect` agent may use it, and only if (a) the Phase 0 gate fails and the core needs redesign, or (b) a Sonnet agent failed the same bug twice. Ask the user before each use.
 - **Local Ollama models** do token-heavy grunt work through `tools/llm/ask-local`; a Claude agent always reviews, compiles or tests their output.
 
@@ -80,16 +92,24 @@ Gate passed: the core is C++ and dlopens the wheel's libs; Maxine headers are ve
   | `gemma4:e4b` | prose (README, docs) |
 - **VRAM rule:** Ollama and VSR share the 8 GB GPU. Before any bench/perf test run `ollama ps` and `ollama stop <model>`; never bench while a model is resident.
 
+## Task sizing (user rule, 2026-10-27: small tasks for each subagent)
+Every subagent brief is one small task:
+- **One deliverable** in named files; touch nothing else. One agent per directory/file at a time.
+- **At most ~300 lines** of new code or one test group. Bigger work is split into a chain of tasks, each leaving the tree building and its tests passing.
+- **One verify command** that says when it is done (name it, with the expected count). Done means that command passes.
+- **Stop rule:** the same problem fails twice -> stop and report. No scope growth.
+- **Report <= 10 lines:** files changed, verify result with counts, what was skipped, risk.
+- **Model:** Haiku by default; Sonnet for real engineering (GTK window, config editor, plugin C++). No GPU unless the task says so; functional GPU runs may overlap, timing runs never (one at a time, Ollama idle).
+- Start the brief with: "Read CLAUDE.md (Rules, Coding style, Task sizing). No Python, not even one-liners. No commits, no sudo, real home untouched (scratch HOME under the scratchpad)."
+
 ## Agents (`.claude/agents/`)
 | Agent | Model | Owns |
 |---|---|---|
-| `env-setup` | haiku | Phase 0 installs, venv, `check_env.py` |
 | `cuda-core` | sonnet | `core/` |
 | `mpv-vapoursynth` | sonnet | `vapoursynth/`, `mpv/` |
-| `vlc-plugin` | sonnet | `vlc/` |
-| `browser-handoff` | haiku | `browser/` |
+| `vlc-plugin` | haiku | `vlc/` |
 | `perf-verifier` | haiku | read-only benches/tests/A-B; enforces VRAM rule |
 | `docs-packaging` | haiku | `install/`, README, this file |
 | `architect` | opus | escalation only, see above |
 
-Phase → agent: 0 `env-setup` + `perf-verifier` · 1 `cuda-core` · 2–3 `mpv-vapoursynth` · 4 `vlc-plugin` · 5 `browser-handoff` · 6 `docs-packaging` · `perf-verifier` after every phase. Phases 4 and 5 can run in parallel (worktree isolation).
+Agents are for recurring roles; most tasks are one-off briefs to a general-purpose agent following Task sizing. `docs-packaging` owns `install/`, README and this file.

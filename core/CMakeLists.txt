@@ -38,6 +38,10 @@ target_compile_options(nvvsr_header_c PRIVATE -Wall -Wextra -pedantic -Werror)
 install(TARGETS nvvsr LIBRARY DESTINATION lib)
 install(FILES include/nvvsr.h DESTINATION include)
 
+add_executable(nvvsr_probe tools/nvvsr_probe.c)
+target_link_libraries(nvvsr_probe PRIVATE nvvsr)
+install(TARGETS nvvsr_probe RUNTIME DESTINATION bin)
+
 if(NVVSR_BUILD_TESTS)
   enable_testing()
   add_subdirectory(tests)
