@@ -170,13 +170,6 @@ std::string build_report(const ReportInput &in) {
   settings(in.vlc_settings);
   lines.insert(lines.end(), in.extra_lines.begin(), in.extra_lines.end());
 
-  // Only whether the file exists: its contents can hold cookies and must never reach the report.
-  std::error_code ec;
-  const bool handoff = std::filesystem::is_regular_file(config_home() + "/nvvsr/handoff.json", ec);
-  lines.push_back("");
-  lines.push_back(std::string("Legacy Chrome handoff configured: ") + (handoff ? "yes" : "no") +
-                  " (contents not included)");
-
   std::string text;
   for (const std::string &l : lines) text += l + "\n";
   return redact(text);

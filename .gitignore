@@ -8,3 +8,4 @@ models/
 *.engine
 *.plan
 third_party/nvidia-vfx/
+.claude/worktrees/

@@ -131,8 +131,6 @@ void test_versions() {
 void test_report() {
   Scratch s;
   const SrStatus st = installed_status(s);
-  // The handoff file holds secrets: the report may say it exists, never what it contains.
-  support::write_file(s.home + "/.config/nvvsr/handoff.json", R"({"use_chrome_cookies": true, "token": "do-not-leak"})");
 
   ReportInput in;
   in.versions = {{"NV Control", "0.1.0"}, {"VLC", std::nullopt}};
@@ -157,11 +155,9 @@ void test_report() {
   in.vlc_settings = {"  nvvsr-quality = high"};
   const std::string text = build_report(in);
 
-  CHECK(!contains(text, "do-not-leak"), "handoff.json contents are not in the report");
-  CHECK(!contains(text, "use_chrome_cookies"), "handoff.json keys are not in the report");
   CHECK(!contains(text, s.home), "the home path is shortened");
   for (const char *needle : {"NV Control: 0.1.0", "VLC: not found", "Ready for", "hybrid mode: Hybrid", "RTX 3070 Ti",
-                             "Legacy Chrome handoff configured: yes (contents not included)", "[ok] libnvvsr",
+                             "[ok] libnvvsr",
                              "libdir = ~/.config/nvvsr/libdir", "1312/8192 MiB", "Ready for mpv and VLC (installed)"})
     CHECK(contains(text, needle), "report contains: %s", needle);
 

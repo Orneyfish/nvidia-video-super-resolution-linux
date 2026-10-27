@@ -1,5 +1,5 @@
 // Versions and the plain-text "Copy diagnostics" report (port of panel/nvc/diag.py). No secrets: no cookies, no
-// handoff.json contents, and the home directory is shown as ~. Besides std types, the header uses the panel's data
+// credentials, and the home directory is shown as ~. Besides std types, the header uses the panel's data
 // headers only (no GTK, no json-glib).
 #pragma once
 
