@@ -166,7 +166,7 @@ struct Result {
   }
 };
 
-// A filter that overwrites the planes of a YUV420P8 clip with clip.vpy's deterministic pattern (std.Expr
+// A filter that overwrites the planes of a YUV420P8 clip with a deterministic pattern (std.Expr
 // has no pixel coordinates, so this is a small filter of our own: frame properties are kept).
 namespace detail {
 struct PatternData {
@@ -204,7 +204,7 @@ inline void VS_CC pattern_free(void *inst, VSCore *, const VSAPI *api) {
 }
 }  // namespace detail
 
-// Test source clip (std.BlankClip, optionally patterned, like tests/clip.vpy).
+// Test source clip (std.BlankClip, optionally patterned).
 struct Spec {
   int w = 1280, h = 720;
   uint32_t format = pfYUV420P8;  // VSPresetFormat

@@ -1,4 +1,4 @@
-// Section 3b of run.sh as C++ (the checks of props_check.py): the frame properties the plugin sets on its
+// Frame properties the plugin sets on its
 // output, the colour selection from arguments and from _Matrix/_ColorSpace/_Range, the per-frame colour
 // cache, and a concurrency stress run. Needs NVVSR_PLUGIN (ctest sets it) and the NVIDIA libraries.
 #include <algorithm>
@@ -49,7 +49,7 @@ std::string payload(const vst::Result &r, int n) {
 }
 
 // 640x360 YUV420P8 with strongly coloured chroma (so the matrix matters), 2 frames at 24 fps, with the
-// properties props_check.py sets plus the given int properties.
+// properties the plugin sets plus the given int properties.
 vst::Result source(const Env &env, std::initializer_list<std::pair<const char *, int64_t>> props = {}) {
   Map bc = env.map();
   bc.i("width", 640).i("height", 360).i("format", pfYUV420P8).i("length", 2).i("fpsnum", 24).i("fpsden", 1)

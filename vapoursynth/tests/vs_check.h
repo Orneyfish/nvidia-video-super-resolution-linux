@@ -1,5 +1,5 @@
 // PASS/FAIL bookkeeping for the plugin tests (the idea of core/tests/test_util.h without its libnvvsr
-// dependency). One line per check, like run.sh; the exit status of main() is finish().
+// dependency). One line per check; the exit status of main() is finish().
 #pragma once
 
 #include <cstdio>

@@ -50,16 +50,8 @@ set_target_properties(vsnvvsr PROPERTIES
   LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.map"
   SKIP_BUILD_RPATH ON SKIP_INSTALL_RPATH ON)
 
-# Reference tool for tests/run.sh (libnvvsr only, no VapourSynth).
-option(NVVSR_VS_BUILD_TESTS "Build the test programs (reference tool for tests/run.sh, ctest suites)" ON)
+option(NVVSR_VS_BUILD_TESTS "Build the test programs (ctest suites)" ON)
 if(NVVSR_VS_BUILD_TESTS)
-  add_executable(nvvsr_vs_ref tests/ref_upscale.cpp)
-  target_include_directories(nvvsr_vs_ref PRIVATE "${NVVSR_CORE_INCLUDE_DIR}")
-  target_link_libraries(nvvsr_vs_ref PRIVATE nvvsr_core)
-  set_target_properties(nvvsr_vs_ref PROPERTIES SKIP_BUILD_RPATH ON)
-  target_link_options(nvvsr_vs_ref PRIVATE "LINKER:-rpath,${NVVSR_LIBRARY_DIR}")
-  target_compile_options(nvvsr_vs_ref PRIVATE -Wall -Wextra)
-
   # ctest suites: every tests/test_*.cpp is a program on the VapourSynth C API (libvapoursynth only, no
   # VSScript, no Python; see tests/vs_harness.h). Each gets NVVSR_PLUGIN (the plugin built above) and
   # NVVSR_LIBDIR_DEFAULT (the unzipped wheel from tools/libdir.sh; a NVVSR_LIBDIR in the caller's

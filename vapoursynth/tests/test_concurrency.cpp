@@ -1,4 +1,4 @@
-// Concurrency of core.nvvsr.Upscale: C++ port of section 4 of run.sh ("results independent of pool size and
+// Concurrency of core.nvvsr.Upscale: Checks ("results independent of pool size and
 // request depth; no deadlock"). Frames are requested asynchronously (vst::render_async, getFrameAsync), several in
 // flight, like vspipe --requests. Part 1: 24 frames give the same output at pool/requests 1/1, 2/4, 3/8 and 4/4.
 // Part 2 (new): 240 frames whose _Matrix alternates between BT.709 and BT.601, 8 requests in flight, at pool 1, 2

@@ -1,6 +1,6 @@
 #!/bin/bash
-# Static checks of the plugin binary (readelf/nm only, no GPU, no VapourSynth): port of section 1 of run.sh
-# ("plugin loads, signature, linking"), with the function signatures read from the binary instead of through Python.
+# Static checks of the plugin binary (readelf/nm only, no GPU, no VapourSynth): plugin loads, signature, linking,
+# with the function signatures read from the binary instead of through Python.
 #   test_linking.sh [PLUGIN.so]        (default: $NVVSR_PLUGIN)
 # Exit status: 0 when every check passed.
 set -u

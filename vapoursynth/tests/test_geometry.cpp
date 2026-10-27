@@ -1,6 +1,6 @@
 // Output geometry and format of core.nvvsr.Upscale, and clean errors for unsupported input and bad
-// arguments. C++ port of sections 2 and 2b of run.sh (same cases, same expected values), plus a few
-// checks that render frames (section 3: frame size, format and properties agree with the clip info).
+// arguments. Cases of the removed run.sh sections 2 and 2b (same expected values), plus a few
+// checks that render frames (frame size, format and properties agree with the clip info).
 // Needs NVVSR_PLUGIN (ctest sets it) and the NVIDIA libraries (NVVSR_LIBDIR).
 #include <algorithm>
 #include <set>
@@ -12,7 +12,7 @@ using vst::Env;
 using vst::Map;
 using vst::Spec;
 
-// run.sh's vinfo: "WxH FORMAT" of Upscale's output clip, or "ERROR: <message>" when the call fails.
+// vinfo: "WxH FORMAT" of Upscale's output clip, or "ERROR: <message>" when the call fails.
 static std::string vinfo(const Env &env, const Spec &src, const Map &up_args) {
   vst::Result r = env.then(env.test_clip(src), "nvvsr", "Upscale", up_args);
   if (!r) return "ERROR: " + r.error;

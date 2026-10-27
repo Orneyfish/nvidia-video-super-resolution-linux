@@ -1,6 +1,5 @@
-// Section 3 of run.sh as C++: the plugin's output equals libnvvsr called directly, byte for byte, on a
-// 1282x722 pattern (row strides padded), and grey input keeps its level. The reference calls libnvvsr
-// the way tests/ref_upscale.cpp does. The test links only libvapoursynth, so libnvvsr is taken from the
+// The plugin's output equals libnvvsr called directly, byte for byte, on a
+// 1282x722 pattern (row strides padded), and grey input keeps its level. The test links only libvapoursynth, so libnvvsr is taken from the
 // process after LoadPlugin (the plugin loaded it; RTLD_NOLOAD returns that same object). Needs
 // NVVSR_PLUGIN and NVVSR_LIBDIR (ctest sets them).
 #include <dlfcn.h>
@@ -55,7 +54,7 @@ bool load_lib(Lib *L, std::string *err) {
   return true;
 }
 
-// Planes of a frame back to back, rows without padding (the layout of ref_upscale's files).
+// Planes of a frame back to back, rows without padding.
 std::vector<uint8_t> packed(const vst::Frame &f) {
   std::vector<uint8_t> out;
   for (int p = 0; p < 3; ++p)
