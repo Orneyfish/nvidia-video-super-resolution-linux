@@ -9,13 +9,38 @@ bilinear (what the browser does anyway), AMD FSR 1.0 (EASU + RCAS, MIT) and Anim
 "restore" pass (MIT); licences in `LICENSE-FSR.txt` and `LICENSE-Anime4K.txt`, weights extracted by
 `tools/extract-anime4k.cpp` into `src/models/`. It exists because Chrome on Linux hands the compositor window-sized
 buffers only, so no driver or compositor hook can see the source-resolution video (`tools/spikes/browser-sr/`); an
-extension content script can reach the `<video>` on any site. **There is no extension wrapper yet** (find the video,
-create the canvas, call `VideoUpscaler`, fall back to the plain video on any `UpscalerError`).
+extension content script can reach the `<video>` on any site; that wrapper is `extension/` (below).
 
 ```js
 const up = await VideoUpscaler.create(video, canvas, { mode: 'cnn', cnnSize: 'S' });  // 'bilinear' | 'fsr' | 'cnn'
 up.start(); up.stats(); up.setMode('fsr'); up.destroy();
 ```
+
+## Extension (`extension/`, MV3, prototype)
+
+`content.js` (about 70 lines) runs on every page and frame. On `fullscreenchange` it finds the biggest `<video>` in the
+fullscreen element and, if the picture is smaller than the screen and the machine is on AC power, lays a canvas over it and
+runs `VideoUpscaler` (Anime4K CNN-S). Leaving fullscreen, `Alt+S`, an error or DRM video give back the plain video; a small
+semi-transparent "SR" / "SR off" / "SR failed" badge shows for 1.5 s. It asks for the `low-power` adapter first (the iGPU
+Chrome composites on, which keeps the RTX asleep) and retries `high-performance` only on `import-failed`.
+`extension/src` is a symlink to `../src`.
+
+Load it: `chrome://extensions` -> Developer mode -> Load unpacked -> this repository's `webgpu/extension`. Chrome needs
+WebGPU on Linux: with `--ignore-gpu-blocklist` (already in `~/.config/chrome-flags.conf` here) both adapters appear, without
+it `requestAdapter()` returns null and the extension logs `no-adapter` and does nothing.
+
+Tested 2026-10-28 on YouTube ("Me at the zoo", 320x240) in a real Chrome window on the live Hyprland desktop
+(`test/ext_drive.cpp`): `[nvvsr] on low-power 320x240`, fullscreen box 1920x1440, canvas 1280x960 (the 4x cap), and a
+screenshot with the canvas differs from one without it (38.1 dB PSNR between them; the canvas is a little crisper on edges).
+In a normal Chrome session the NVIDIA adapter cannot import Chrome's video frames at all (`import-failed`, "Requested
+allocation size is smaller than the image requires"), so on this hybrid laptop only the Intel adapter is usable in-page; the
+Intel iGPU ran every mode at 30.16 fps with 0 drops there. Not yet tried: Crunchyroll (DRM video cannot be imported, it must
+fall back to the plain video) and the YouTube web app in the user's own profile.
+
+`test/ext_drive.cpp` (C++) drives Chrome through `--remote-debugging-pipe`: `--load-extension` is gone in Chrome 156 and
+remote debugging is refused on the default profile directory, so it uses `Extensions.loadUnpacked` on a scratch profile:
+`ext_drive CHROME webgpu/extension URL OUT_DIR WAIT_LOAD_S WAIT_FS_S --user-data-dir=DIR --ignore-gpu-blocklist ...`; it opens one
+window, presses `f`, and writes the page state and two screenshots (canvas on and hidden) to OUT_DIR.
 
 ## Results (Chrome 156, headless `cage`, 2560x1440 canvas, RTX 3070 Ti Laptop + Intel Iris Xe)
 
@@ -57,7 +82,8 @@ fullscreen (video or container) work; an insecure origin has no `navigator.gpu`.
   bilinear and FSR, so it comes from the `importExternalTexture` path, not the upscaler; not understood yet.
 - **Geometry** (contain/cover/fill/rotate/mirror) is not verified: the screenshot PSNR of that test returned NaN in all six scenes.
 - **EME:** the ClearKey test timed out (`waitingforkey`); real DRM video cannot be imported anyway.
-- Nothing has run on a real site yet.
+- Only YouTube has been tried (signed out, scratch profile); fullscreen handling and the canvas position on other players
+  (Crunchyroll's player runs in an iframe) are untested.
 
 ## Recommendation
 

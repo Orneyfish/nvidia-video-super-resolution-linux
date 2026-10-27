@@ -1,0 +1,8 @@
+{
+  "manifest_version": 3,
+  "name": "nvvsr in-page video upscaler (prototype)",
+  "version": "0.1.0",
+  "description": "Upscales fullscreen video on the GPU with WebGPU (Anime4K CNN, FSR). Prototype of the NVIDIA video super resolution project.",
+  "content_scripts": [{ "matches": ["<all_urls>"], "js": ["content.js"], "all_frames": true, "run_at": "document_idle" }],
+  "web_accessible_resources": [{ "resources": ["src/*"], "matches": ["<all_urls>"] }]
+}
