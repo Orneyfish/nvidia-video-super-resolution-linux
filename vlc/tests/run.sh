@@ -8,7 +8,7 @@
 #   vlc/tests/run.sh --only TAG..  run only the sections with these tags (modules unit filter vout gating errors
 #                                  eligible realtime cage bench)
 #
-# Environment (all optional): NVVSR_LIBDIR (default: the repo's .venv wheel directories), NVVSR_TEST_TMP (scratch
+# Environment (all optional): NVVSR_LIBDIR (default: tools/libdir.sh, the unpacked nvidia-vfx wheel), NVVSR_TEST_TMP (scratch
 # directory, kept; default a temporary one), NVVSR_TEST_MEDIA (directory with ready-made clips, default
 # <scratch>/media, generated with ffmpeg), NVVSR_GPU_LOCK (lock file created by --bench, default <scratch>/gpu-bench.lock).
 #
@@ -37,10 +37,7 @@ done
 want() { [ -z "$ONLY" ] || case " $ONLY " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 
 # ---- environment -------------------------------------------------------------------------------
-if [ -z "${NVVSR_LIBDIR:-}" ]; then
-  sp=$(ls -d "$REPO"/.venv/lib/python3*/site-packages 2>/dev/null | head -1)
-  [ -n "$sp" ] && export NVVSR_LIBDIR="$sp/nvvfx/libs:$sp/nvidia_vfx.libs"
-fi
+if [ -z "${NVVSR_LIBDIR:-}" ] && lib=$("$REPO/tools/libdir.sh"); then export NVVSR_LIBDIR=$lib; fi
 if [ -n "${NVVSR_TEST_TMP:-}" ]; then
   SCR=$NVVSR_TEST_TMP; mkdir -p "$SCR"
 else
@@ -48,11 +45,20 @@ else
 fi
 MEDIA=${NVVSR_TEST_MEDIA:-$SCR/media}
 LOCK=${NVVSR_GPU_LOCK:-$SCR/gpu-bench.lock}
-trap 'rm -f "$LOCK" /dev/shm/nvvsr-rt-$$ 2>/dev/null; [ -n "${NVVSR_TEST_TMP:-}" ] || rm -rf "$SCR"' EXIT
+cleanup() {  # a passing run removes the scratch dir; a failing run keeps only its logs (captures are GBs)
+  rm -f "$LOCK" /dev/shm/nvvsr-rt-$$ 2>/dev/null
+  [ -n "${NVVSR_TEST_TMP:-}" ] && return
+  if [ "${FAIL:-0}" -eq 0 ]; then rm -rf "$SCR"; else
+    find "$SCR" -mindepth 1 -maxdepth 1 ! -name '*.log' -exec rm -rf {} +
+    echo "logs of the failed checks kept in $SCR" >&2
+  fi
+}
+trap cleanup EXIT
 
-for tool in vlc ffmpeg ffprobe python3 cmake; do
+for tool in vlc ffmpeg ffprobe cmake g++; do
   command -v "$tool" >/dev/null || { echo "FAIL prerequisite: $tool not found"; exit 1; }
 done
+g++ -std=c++17 -O2 -o "$SCR/compare" "$HERE/compare.cpp" || { echo "FAIL prerequisite: compare.cpp does not build"; exit 1; }
 
 if [ ! -f "$REPO/build/core/libnvvsr.so" ]; then
   cmake -S "$REPO/core" -B "$REPO/build/core" -DCMAKE_BUILD_TYPE=Release >/dev/null && cmake --build "$REPO/build/core" -j >/dev/null
@@ -82,6 +88,7 @@ rm -f "$SCR/plugins/plugins.dat"
 # vrun LOG [env VAR=val ...] -- vlc-args...: one headless VLC run. Sets $RC and $ELAPSED (seconds).
 RC=0; ELAPSED=0
 vrun() {
+  drop_caps
   local log=$1; shift
   local envs=()
   while [ $# -gt 0 ] && [ "$1" != "--" ]; do envs+=("$1"); shift; done
@@ -101,6 +108,7 @@ vrun() {
 # vrun_rc LOG "script" ENV... -- vlc-args: like vrun but with the oldrc interface; the script lines are rc commands
 # or "sleep N" and are fed to the interface on stdin (it is how the fullscreen state is toggled headlessly).
 vrun_rc() {
+  drop_caps
   local log=$1 script=$2; shift 2
   local envs=()
   while [ $# -gt 0 ] && [ "$1" != "--" ]; do envs+=("$1"); shift; done
@@ -118,24 +126,7 @@ vrun_rc() {
 vsize() { ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "$1" 2>/dev/null | head -1; }
 # yuv header of a capture: "WxH" of the frames in a file written by the yuv video output
 yuv_size() { head -c 200 "$1" | head -1 | sed -n 's/^[^ ]* W\([0-9]*\) H\([0-9]*\) .*/\1x\2/p'; }
-yuv_frames() {  # number of FRAME records (counted by parsing, not by file size)
-  python3 -I - "$1" <<'EOF'
-import sys
-f = open(sys.argv[1], "rb")
-hdr = f.readline().decode().split()
-w = int(hdr[1][1:]); h = int(hdr[2][1:]); fs = w * h * 3 // 2
-n = 0
-while True:
-    tag = f.readline()
-    if not tag:
-        break
-    if tag != b"FRAME\n":
-        print("bad"); sys.exit(0)
-    f.seek(fs, 1)
-    n += 1
-print(n)
-EOF
-}
+yuv_frames() { "$SCR/compare" --count-frames "$1"; }  # number of FRAME records (counted by parsing, not by file size)
 
 # ---- media -------------------------------------------------------------------------------------
 F="ffmpeg -v error -y -nostdin"
@@ -160,6 +151,8 @@ done
 
 # Raw source frames and references (frames are compared byte for byte with what VLC shows).
 REFDIR=$SCR/ref; mkdir -p "$REFDIR"
+drop_caps() { rm -f "$SCR"/out/*; }   # captures are GBs: each one goes before the next run (its check has run by then)
+drop_refs() { rm -f "$REFDIR"/*; }    # references are rebuilt on demand by mkref; a section starts without them
 mkref() {  # NAME IWxIH OWxOH QUALITY FRAMES [nobic]: decoded source frames, libnvvsr reference, bicubic reference
   local n=$1 is=$2 os=$3 q=$4 frames=$5 nobic=${6:-}
   [ -s "$REFDIR/$n.src.i420" ] || $F -i "$MEDIA/$n.mp4" -frames:v "$frames" -pix_fmt yuv420p -f rawvideo "$REFDIR/$n.src.i420"
@@ -167,12 +160,13 @@ mkref() {  # NAME IWxIH OWxOH QUALITY FRAMES [nobic]: decoded source frames, lib
   [ -n "$nobic" ] && return 0
   [ -s "$REFDIR/$n.bic.i420" ] || $F -f rawvideo -pix_fmt yuv420p -s "$is" -i "$REFDIR/$n.src.i420" -vf "scale=${os/x/:}:flags=bicubic" -pix_fmt yuv420p -f rawvideo "$REFDIR/$n.bic.i420"
 }
-compare() { python3 -I "$HERE/compare.py" "$@"; }   # OUT.yuv REF BIC WxH [--frames N] [--expect-exact]
+compare() { "$SCR/compare" "$@"; }   # OUT.yuv REF BIC WxH [--frames N] [--expect-exact]
 
 PANEL="--nvvsr-width=2560 --nvvsr-height=1440"
 CAP="--vout=nvvsr --nvvsr-vout=yuv"                # the nvvsr display wrapping the frame-dumping `yuv` output
 
 # ================================================================================================
+drop_refs
 if want modules; then
 echo "== 1. module loads, exports, linking"
 vrun "$SCR/list.log" -- --list
@@ -196,6 +190,7 @@ check_eq "no wheel/CUDA library is linked (libnvvsr dlopens them)" "$(readelf -d
 fi
 
 # ================================================================================================
+drop_refs
 if want unit; then
 echo "== 2. unit tests of the pure logic (classification, geometry, power, CPU fallback)"
 out=$(TMPDIR=$SCR "$BUILD/nvvsr_vlc_unit" 2>&1); rc=$?
@@ -206,6 +201,7 @@ PASS=$((PASS + up)); FAIL=$((FAIL + uf))
 fi
 
 # ================================================================================================
+drop_refs
 if want filter; then
 echo "== 3. why a video filter is not enough in the vout, and what the video filter does"
 vrun "$SCR/croppadd.log" -- --vout=dummy --video-filter=croppadd --croppadd-croptop=100 --run-time=2 "$MEDIA/v720p30.mp4"
@@ -222,19 +218,7 @@ check_eq "transcode with vfilter=nvvsr: exit status" "$RC" "0"
 check_eq "transcoded stream is 2560x1440" "$(vsize "$SCR/out/tc.ts")" "2560x1440"
 has "$SCR/tc.log" "nvvsr filter: super resolution 1280x720 -> 2560x1440" && ok "log: filter created 1280x720 -> 2560x1440" || bad "filter log" "line missing"
 $F -i "$SCR/out/tc.ts" -frames:v 1 -pix_fmt yuv420p -f rawvideo "$SCR/out/tc.f0.i420" 2>/dev/null
-p=$(python3 -I - "$SCR/out/tc.f0.i420" "$REFDIR/v720p30.ref.i420" "$REFDIR/v720p30.bic.i420" <<'EOF'
-import sys, numpy as np
-w, h = 2560, 1440; fs = w * h * 3 // 2
-a = np.fromfile(sys.argv[1], dtype=np.uint8, count=fs)
-def psnr(x, y):
-    d = x.astype(np.int32) - y.astype(np.int32); m = float(np.mean(d * d))
-    return 99.0 if m == 0 else 10 * np.log10(255 * 255 / m)
-ref = np.memmap(sys.argv[2], dtype=np.uint8, mode="r"); bic = np.memmap(sys.argv[3], dtype=np.uint8, mode="r")
-n = len(ref) // fs
-best = max(range(n), key=lambda i: psnr(a[: w * h], ref[i * fs: i * fs + w * h]))
-print("%.1f %.1f" % (psnr(a, ref[best * fs: (best + 1) * fs]), psnr(a, bic[best * fs: (best + 1) * fs])))
-EOF
-)
+p=$("$SCR/compare" --best-psnr "$SCR/out/tc.f0.i420" "$REFDIR/v720p30.ref.i420" "$REFDIR/v720p30.bic.i420" 2560x1440)
 check_ge "first transcoded frame vs libnvvsr reference (lossy MPEG-4, 40 Mbit/s) PSNR dB" "${p%% *}" 34
 for clip in v1440p v240p; do
   rm -f "$SCR/out/tc2.ts"
@@ -245,6 +229,7 @@ done
 fi
 
 # ================================================================================================
+drop_refs
 if want vout; then
 echo "== 4. super resolution through the vout display (frames captured from VLC's own output)"
 mkref v720p30 1280x720 2560x1440 high 60
@@ -286,6 +271,7 @@ has "$SCR/q2.log" "unknown nvvsr-quality 'bogus', using auto" && ok "an unknown 
 fi
 
 # ================================================================================================
+drop_refs
 if want gating; then
 echo "== 5. fullscreen / power gating"
 mkref v720p30 1280x720 2560x1440 high 60
@@ -330,6 +316,7 @@ check_eq "on battery with --no-nvvsr-ac-only: upscaled" "$(yuv_size "$SCR/out/ba
 fi
 
 # ================================================================================================
+drop_refs
 if want errors; then
 echo "== 6. failures fall back to the original video"
 mkref v720p30 1280x720 2560x1440 high 60
@@ -366,6 +353,7 @@ check_eq "no crash/segfault in any of the failure runs" "$(grep -l -E 'dumped co
 fi
 
 # ================================================================================================
+drop_refs
 if want eligible; then
 echo "== 7. eligibility: sources that must be left alone"
 for spec in "v1440p:2560x1440:1440p source on a 1440p panel" "v720p10b:1280x720:10-bit 4:2:0 (HEVC main10)" "hdr_pq:1280x720:HDR (PQ, BT.2020)" "sdr_bt2020:1280x720:SDR with BT.2020 primaries" "v240p:320x240:240p (below nvvsr-min-height 360)"; do
@@ -391,6 +379,7 @@ has "$SCR/auto_list.log" "using vout display module \"vdummy\"" && ok "explicit 
 fi
 
 # ================================================================================================
+drop_refs
 if want realtime; then
 echo "== 8. real-time playback, 0 late/lost pictures"
 rt() {  # NAME CLIP SECONDS FPS

@@ -88,7 +88,7 @@ vlc/tests/run.sh [--cage] [--bench] [--only TAG...]    # PASS/FAIL per check, ex
 `run.sh` builds its own test build (`vlc/build-test`, with the test hooks) and runs VLC completely headless: dummy
 interface, no `DISPLAY`/`WAYLAND_DISPLAY`/D-Bus, scratch `HOME`/XDG, scratch plugin directory + `vlc-cache-gen`. The
 pictures VLC shows are captured by wrapping VLC's own `yuv` video output and compared byte for byte with libnvvsr called
-directly on the same decoded frames (`vlc/build-test/nvvsr_vlc_ref`, `tests/compare.py`). `--cage` additionally runs VLC
+directly on the same decoded frames (`vlc/build-test/nvvsr_vlc_ref`, `tests/compare.cpp`). `--cage` additionally runs VLC
 with a real OpenGL output inside a headless `cage` compositor (`WLR_BACKENDS=headless`, never the desktop).
 Note: `--vout=dummy` is NOT headless on a desktop session: VLC 3 still opens a window through the vout window modules
 (xdg_shell/xcb_window) before the display module discards it, so the harness removes the display variables.
@@ -97,7 +97,7 @@ Installing into VLC is Phase 6; to try it by hand without installing anything:
 ```
 mkdir -p ~/vsr-vlc/plugins/video_output && ln -sf $PWD/vlc/build/libnvvsr_plugin.so ~/vsr-vlc/plugins/video_output/
 /usr/lib/vlc/vlc-cache-gen ~/vsr-vlc/plugins
-NVVSR_LIBDIR=<venv>/lib/python3*/site-packages/nvvfx/libs:<venv>/lib/python3*/site-packages/nvidia_vfx.libs \
+NVVSR_LIBDIR=$(tools/libdir.sh) \
   VLC_PLUGIN_PATH=~/vsr-vlc/plugins vlc -vv --vout=nvvsr video.mp4 2>&1 | grep -i nvvsr
 ```
 Press `f` (or double click) for fullscreen: the log shows `super resolution on: 1280x720 -> 2560x1440`; `f` again shows
