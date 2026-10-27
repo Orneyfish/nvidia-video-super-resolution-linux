@@ -18,7 +18,7 @@ up.start(); up.stats(); up.setMode('fsr'); up.destroy();
 
 ## Extension (`extension/`, MV3, prototype)
 
-`content.js` (about 70 lines) runs on every page and frame. On `fullscreenchange` it finds the biggest `<video>` in the
+`content.js` (about 60 lines) runs on every page and frame. On `fullscreenchange` it finds the biggest `<video>` in the
 fullscreen element and, if the picture is smaller than the screen and the machine is on AC power, lays a canvas over it and
 runs `VideoUpscaler` (Anime4K CNN-S). Leaving fullscreen, `Alt+S`, an error or DRM video give back the plain video; a small
 semi-transparent "SR" / "SR off" / "SR failed" badge shows for 1.5 s. It asks for the `low-power` adapter first (the iGPU
