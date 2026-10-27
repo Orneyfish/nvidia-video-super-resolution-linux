@@ -45,4 +45,9 @@ if(NVC_BUILD_APP)
   target_link_libraries(nvcontrol PRIVATE nvc PkgConfig::GTK4 PkgConfig::ADW)
   # the development checkout of the panel: icons/ and the repo lookup start here
   target_compile_definitions(nvcontrol PRIVATE NVC_APP_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+
+  # headless driver of the settings editor and badge preview for tests/smoke_editor.sh (run inside cage; not a unit test)
+  add_executable(editor_harness tests/editor_harness.cpp src/ui_editor.cpp src/ui_badge.cpp src/ui_poll.cpp)
+  target_include_directories(editor_harness PRIVATE ${JSONGLIB_INCLUDE_DIRS})
+  target_link_libraries(editor_harness PRIVATE nvc PkgConfig::GTK4 PkgConfig::ADW)
 endif()
