@@ -1,5 +1,5 @@
 #!/bin/bash
-# Bash port of the helpers of mpv/tests/integration.py (sourced by run_groups.sh, not run directly).
+# Helpers for the group tests in groups/ (sourced by run_groups.sh, not run directly).
 # A check prints PASS/FAIL and counts; a run is one headless mpv (--vo=null --ao=null) driven through mpvctl.
 # Needs from the driver: T_REPO, T_SCR (scratch dir), T_MPV (mpv binary), T_MEDIA (test clips), MPVCTL (built
 # mpvctl), NVVSR_LIBDIR, NVVSR_PLUGIN. Optional NVVSR_ONLY_TAGS: space-separated; wanted() skips other tags.
@@ -33,7 +33,7 @@ wanted() {  # wanted TAG: true when no tags are selected or one of them occurs i
     return 1
 }
 
-py_list() {  # py_list WORD...: Python's repr of a list of strings, so check names match integration.py
+py_list() {  # py_list WORD...: bracketed, quoted list of strings, the form the check names use
     local w s=
     for w in "$@"; do s+="${s:+, }'$w'"; done
     printf '[%s]' "$s"
@@ -119,7 +119,7 @@ trap 'exit 130' INT TERM
 
 r_open() {  # r_open [--windowed] [--audio] [--nodisplay] [--script P] [--config-dir D] [--opt K=V]...
             #        [--extra ARG]... [--env K=V]... FILE...
-    # Same options and environment as integration.py Run.__init__ (fullscreen, no audio, display 2560x1440).
+    # Options and environment of one run: fullscreen, no audio, display 2560x1440.
     local fs=1 audio=0 display=2560x1440 script=$T_REPO/mpv/vsr.lua config_dir= f k i
     local -A opts=([vsr-confirm_timeout]=3)
     local -a extra=() envs=() files=() args=() env_cmd

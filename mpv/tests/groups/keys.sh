@@ -1,5 +1,5 @@
 #!/bin/bash
-# Group "keys" (integration.py keys()): toggle, quality and stats key bindings, and the script-binding. 13 checks.
+# Group "keys": toggle, quality and stats key bindings, and the script-binding. 13 checks.
 
 _keys_ud() {  # user-data string of the @nvvsr filter ("" when there is none)
     r_ctl get vf 2>/dev/null | jq -r '[.[]? | select(.label == "nvvsr") | .params["user-data"]][0] // ""'

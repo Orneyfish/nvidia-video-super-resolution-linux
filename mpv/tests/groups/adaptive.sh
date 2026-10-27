@@ -1,6 +1,6 @@
 #!/bin/bash
-# Group "adaptive" (integration.py adaptive()): the quality step-down ladder under forced frame drops, adaptive=no,
-# and pause handling. 13 checks, as in the Python.
+# Group "adaptive": the quality step-down ladder under forced frame drops, adaptive=no,
+# and pause handling. 13 checks.
 
 # shortcut: a fixed short window so the ladder runs in seconds, the defaults are 30 s and 5 drops
 _AD_QUICK=(--opt vsr-adaptive_window=3 --opt vsr-adaptive_drops=5 --opt vsr-settle=1)
@@ -28,7 +28,7 @@ _ad_ladder() {
     # complete ladder down to the floor.
     r_open "${_AD_HEAVY[@]}" "${_AD_QUICK[@]}" v720p30.mp4 || return 0
     local -a seen=() uds=() f=()
-    # shortcut: 90 s, not the Python's 45 s: under CPU load from other jobs the floor came after 45 s (drops were fine)
+    # shortcut: 90 s, not the old 45 s: under CPU load from other jobs the floor came after 45 s (drops were fine)
     local deadline=$((SECONDS + 90)) drops_seen=0 q ud v s t1 t2
     while [ "$SECONDS" -lt "$deadline" ]; do
         q=$(r_get user-data/vsr/quality)

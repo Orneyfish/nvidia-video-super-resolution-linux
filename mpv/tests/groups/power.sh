@@ -1,5 +1,5 @@
 #!/bin/bash
-# Group "power" (integration.py power()): AC / battery switching, driven by a fake sysfs power_supply directory.
+# Group "power": AC / battery switching, driven by a fake sysfs power_supply directory.
 
 _setac() {  # _setac VALUE [SUPPLY]: the online flag of a fake supply (ADP0 mains, ucsi USB-C); default ADP0
     printf '%d\n' "$1" >"$T_SCR/power/${2:-ADP0}/online"

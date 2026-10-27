@@ -1,6 +1,6 @@
 #!/bin/bash
-# Group "fullscreen" (integration.py fullscreen_cycle()): SR follows fullscreen, keeps the user's own filters, and
-# switches hwdec to its -copy variant while it runs and restores it afterwards. 33 checks, as in the Python.
+# Group "fullscreen": SR follows fullscreen, keeps the user's own filters, and
+# switches hwdec to its -copy variant while it runs and restores it afterwards. 33 checks.
 
 _fs_user_entries() {  # the vf entries labelled "user", canonical JSON
     r_ctl get vf 2>/dev/null | jq -cS '[.[]? | select(.label == "user")]'

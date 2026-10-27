@@ -1,4 +1,4 @@
-// mpvctl: one-shot client for mpv's JSON IPC socket (replaces mpvipc.py for the shell tests).
+// mpvctl: one-shot client for mpv's JSON IPC socket (used by the shell group tests).
 // Usage: mpvctl SOCKET get PROP | set PROP JSON_VALUE | cmd JSON_ARRAY
 // Prints the reply's data (raw JSON) on stdout. Errors and timeouts go to stderr with exit 1.
 #include <fcntl.h>

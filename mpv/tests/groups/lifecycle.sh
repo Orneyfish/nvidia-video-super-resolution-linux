@@ -1,6 +1,6 @@
 #!/bin/bash
-# Group "lifecycle" (integration.py lifecycle()): no stale filter or hwdec change between files, display changes,
-# and fullscreen flapping. 11 checks, as in the Python.
+# Group "lifecycle": no stale filter or hwdec change between files, display changes,
+# and fullscreen flapping. 11 checks.
 
 _lc_pos_is() { [ "$(r_get playlist-pos)" = "$1" ]; }
 _lc_logged() { r_log | grep -qF -- "$1"; }

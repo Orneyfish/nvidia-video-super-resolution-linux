@@ -1,5 +1,5 @@
 #!/bin/bash
-# Group "bench" (integration.py bench() and bench_untimed()): prints BENCH lines only, no checks. Runs only with
+# Group "bench": prints BENCH lines only, no checks. Runs only with
 # run_groups.sh --only bench (not in the default set), so the numbers come from an idle machine with Ollama idle.
 
 # true when the awk expression ($1, numbers only, from mpv or the clock) holds

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Group "failures" (integration.py failures()): every failure path ends in the original video, without a retry loop.
+# Group "failures": every failure path ends in the original video, without a retry loop.
 
 _nfailed() { r_count 'SR failed:'; }
 _nfailed_is() { [ "$(_nfailed)" = "$1" ]; }

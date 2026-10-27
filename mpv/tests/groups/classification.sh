@@ -1,5 +1,5 @@
 #!/bin/bash
-# Group "classification" (integration.py classification()): which video gets SR, and which does not.
+# Group "classification": which video gets SR, and which does not.
 # Table columns: name|file|expected state|reason fragment|labels (space-separated)|output size.
 
 group_classification() {
