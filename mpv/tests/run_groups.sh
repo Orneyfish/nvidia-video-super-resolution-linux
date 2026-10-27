@@ -1,7 +1,7 @@
 #!/bin/bash
 # Bash driver for the mpv integration groups (mpv/tests/groups/*.sh, helpers in lib.sh). Prints PASS/FAIL per check.
 #
-#   run_groups.sh [--only GROUP...]     groups: the file names in groups/ (default: all)
+#   run_groups.sh [--only GROUP...]     groups: the file names in groups/ (default: all but bench)
 #
 # Environment (optional): NVVSR_TEST_TMP (scratch directory, kept; default $SCR/mpv-groups), NVVSR_LIBDIR (default:
 # tools/libdir.sh), NVVSR_PLUGIN (default vapoursynth/build/libvsnvvsr.so), NVVSR_MPV (default
@@ -51,7 +51,7 @@ g++ -std=c++17 -O2 -Wall -Wextra -o "$MPVCTL" "$HERE/mpvctl.cpp" || { echo "FAIL
 . "$HERE/lib.sh"
 for g in "$HERE"/groups/*.sh; do . "$g"; done
 if [ ${#ONLY[@]} -eq 0 ]; then
-    for g in "$HERE"/groups/*.sh; do ONLY+=("$(basename "$g" .sh)"); done
+    for g in "$HERE"/groups/*.sh; do n=$(basename "$g" .sh); [ "$n" = bench ] || ONLY+=("$n"); done
 fi
 cd "$T_SCR" || exit 1
 for g in "${ONLY[@]}"; do
