@@ -1,0 +1,6 @@
+#!/bin/bash
+# Crunchyroll desktop app (castlabs Electron) with its GL on the NVIDIA GPU. Its video is Widevine-protected: decode stays inside
+# the CDM and frames cannot be read, so no upscaling is possible for it; only rendering uses the RTX.
+export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json LIBVA_DRIVER_NAME=nvidia NVD_BACKEND=direct __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia
+unset ELECTRON_RUN_AS_NODE  # set by editor/extension hosts: it turns Electron into plain Node ("bad option: --name")
+exec crunchyroll "$@"

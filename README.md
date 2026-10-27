@@ -58,6 +58,19 @@ every existing file it changes as `<file>.bak-nvvsr-<time>`, and a second run ch
 Afterwards: `mpv-sr video.mkv` and `vlc-sr video.mkv` (put `~/.local/bin` on your `PATH`); your normal `mpv` and `vlc`
 are untouched. Toggle fullscreen and super resolution switches on by itself.
 
+## Chrome and Crunchyroll on the NVIDIA GPU
+
+`tools/nvchrome` starts Chrome (the browser and its web apps) with NVDEC video decoding through VA-API
+(`libva-nvidia-driver`) and GL on the RTX: measured on 1080p60 YouTube, decoder engine 5-11 %, 0 dropped frames. Chrome
+honours only the last `--enable-features`, so the script repeats the two features of `~/.config/chrome-flags.conf`.
+`tools/nvcrunchyroll` starts the Crunchyroll desktop app (castlabs Electron) with its GPU process on the RTX through
+Vulkan (flags in `~/.config/electron-castlab-flags.conf`, copy in `tools/electron-castlab-flags.conf`). Its video is
+Widevine-protected, so decoding stays in the CDM and its frames cannot be read: no upscaling is possible for it.
+Install: `install -m755 tools/nvchrome tools/nvcrunchyroll ~/.local/bin/`, then point launchers at them (done on the
+development machine: Hyprland `custom/keybinds.lua` Super+Y/Alt+F/Alt+I/Alt+G/Alt+C, `browser` in `custom/variables.lua`,
+and the Exec lines of the Chrome web-app `.desktop` files; backups `*.bak-nvvsr-<time>` next to each).
+Upscaling in Chrome goes through the `nvvsr_webd` daemon (`webgpu/daemon/`), see `webgpu/README.md`.
+
 ## Using it (mpv)
 
 | Key | Action |
