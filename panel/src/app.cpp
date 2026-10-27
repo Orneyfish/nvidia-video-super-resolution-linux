@@ -67,7 +67,16 @@ void on_activate(GApplication *, gpointer data) {
 
 }  // namespace
 
-App::App() : app_dir(NVC_APP_DIR) { settings.load(); }
+App::App()
+    : app_dir(NVC_APP_DIR), poll([this] {
+        PollContext c;
+        c.window_visible = window_visible();
+        c.page_active = current_page() == kPageOverview;
+        if (settings.poll_interval > 0) c.interval_s = settings.poll_interval;
+        return c;
+      }) {
+  settings.load();
+}
 
 int App::run(const std::optional<SmokeRequest> &smoke_request) {
   smoke = smoke_request;
@@ -159,8 +168,11 @@ void App::build_window() {
   poll_start();
 }
 
-void App::poll_start() {}  // polling engine: start the 1 s tick here
-void App::poll_stop() {}   // polling engine: stop it here
+void App::poll_start() { poll.start(); }
+void App::poll_stop() { poll.stop(); }
+void App::query_now(bool wake) { poll.query_now(wake); }
+const PollEvent &App::poll_last() const { return poll.last(); }
+void App::add_poll_listener(std::function<void(const PollEvent &)> listener) { poll.add_listener(std::move(listener)); }
 
 void App::toast(const std::string &text) {
   if (!toast_overlay) return;
@@ -215,11 +227,13 @@ void App::show_page(const std::string &name) { adw_view_stack_set_visible_child_
 
 void App::page_changed() {
   if (!window_visible()) return;
+  poll.tick_now();  // the Overview shows fresh data at once instead of after the next timer tick
   const auto it = hooks.find(current_page());
   if (it != hooks.end() && it->second.on_show) it->second.on_show();
 }
 
 void App::refresh_current() {
+  if (current_page() == kPageOverview && !poll.refresh()) toast("GPU is asleep: use Wake and read to query it");
   const auto it = hooks.find(current_page());
   if (it == hooks.end()) return;
   const PageHooks &h = it->second;

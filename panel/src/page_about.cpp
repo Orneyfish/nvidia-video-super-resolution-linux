@@ -81,15 +81,17 @@ std::vector<std::string> settings_lines(const std::string &path, const std::vect
   return out;  // empty: build_report prints "(no overrides, defaults apply)"
 }
 
-// Reads sysfs and the install state only; the GPU is not queried (no last poll sample yet: the report says so).
-std::string diagnostics(const std::string &app_dir, const Toolkit &toolkit) {
+// Reads sysfs and the install state; the GPU is never queried here: the hybrid mode and the last reading come from the
+// polling engine's snapshot (no reading yet: the report says so).
+std::string diagnostics(const std::string &app_dir, const Toolkit &toolkit, const PollEvent &snap) {
   const SrStatus status = compute_status(read_install_json(), repo_dir(app_dir), std::nullopt);
   const std::vector<PciGpu> gpus = find_nvidia_gpus();
   ReportInput in;
   in.versions = collect_versions(status, kAppVersion, toolkit);
   in.status = status;
   in.runtime = read_runtime(gpus.empty() ? nullptr : &gpus.front());
-  in.hybrid = supergfxctl_mode();
+  in.hybrid = snap.hybrid;
+  in.sample = snap.sample;
   in.power_source = power_source();
   in.mpv_settings = settings_lines(mpv_vsr_conf(), mpv_options());
   in.vlc_settings = settings_lines(vlcrc(), vlc_options());
@@ -120,7 +122,7 @@ struct SmokeClipboard {
 void copy_diagnostics() {
   if (about->copy_busy) return;
   about->copy_busy = true;
-  run_async<std::string>([dir = about->app_dir, tk = about->toolkit] { return diagnostics(dir, tk); },
+  run_async<std::string>([dir = about->app_dir, tk = about->toolkit, snap = about->app->poll_last()] { return diagnostics(dir, tk, snap); },
                          [](std::string text) {
                            About &a = *about;
                            a.copy_busy = false;

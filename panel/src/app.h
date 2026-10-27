@@ -12,6 +12,7 @@
 
 #include "pages.h"
 #include "settings.h"
+#include "ui_poll.h"
 
 inline constexpr const char *kAppId = "org.nvvsr.Control";
 inline constexpr const char *kAppName = "NV Control";
@@ -29,6 +30,7 @@ struct App {
   std::string app_dir;                    // <repo>/panel (compiled in): icons/ lives here, repo_dir(app_dir) finds the checkout
   std::map<std::string, PageHooks> hooks; // filled by the page factories, keyed by kPage* names
   AdwApplicationWindow *window = nullptr; // null until the first activate
+  UiPoll poll;                            // GPU polling; pages use the wrappers below (contract: ui_poll.h)
 
   void toast(const std::string &text);
   // Opens a terminal (kitty or alacritty, kept open) running `command`; on_done runs on the main loop once the
@@ -40,7 +42,10 @@ struct App {
   void show_page(const std::string &name);
   void refresh_current();                 // what F5 / Ctrl+R / the header button do
 
-  // --- hooks for the polling engine (next task): both are empty for now ---
+  // --- GPU polling (ui_poll.h has the contract) ---
+  void add_poll_listener(std::function<void(const PollEvent &)> listener);
+  const PollEvent &poll_last() const;     // latest snapshot, also while nothing is published
+  void query_now(bool wake = false);      // wake = true: "Wake and read", queries even when the GPU is asleep
   void poll_start();                      // once, at the end of window construction
   void poll_stop();                       // on close-request
 
