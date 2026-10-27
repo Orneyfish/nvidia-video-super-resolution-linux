@@ -68,7 +68,7 @@ Check libdir_check() {
   });
   if (!has_sentinel)
     return mk("libdir", label, false, "",
-              std::string(kSentinel) + " is not in the listed directories (use <venv>/.../nvvfx/libs).");
+              std::string(kSentinel) + " is not in the listed directories (use the nvvfx/libs directory of <prefix>/vfx or third_party/nvidia-vfx).");
   std::string joined;
   for (const auto &d : *dirs) joined += (joined.empty() ? "" : ":") + d;
   return mk("libdir", label, true, joined, "");
