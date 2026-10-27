@@ -51,7 +51,7 @@ set_target_properties(vsnvvsr PROPERTIES
   SKIP_BUILD_RPATH ON SKIP_INSTALL_RPATH ON)
 
 # Reference tool for tests/run.sh (libnvvsr only, no VapourSynth).
-option(NVVSR_VS_BUILD_TESTS "Build the reference tool used by tests/run.sh" ON)
+option(NVVSR_VS_BUILD_TESTS "Build the test programs (reference tool for tests/run.sh, ctest suites)" ON)
 if(NVVSR_VS_BUILD_TESTS)
   add_executable(nvvsr_vs_ref tests/ref_upscale.cpp)
   target_include_directories(nvvsr_vs_ref PRIVATE "${NVVSR_CORE_INCLUDE_DIR}")
@@ -59,6 +59,30 @@ if(NVVSR_VS_BUILD_TESTS)
   set_target_properties(nvvsr_vs_ref PROPERTIES SKIP_BUILD_RPATH ON)
   target_link_options(nvvsr_vs_ref PRIVATE "LINKER:-rpath,${NVVSR_LIBRARY_DIR}")
   target_compile_options(nvvsr_vs_ref PRIVATE -Wall -Wextra)
+
+  # ctest suites: every tests/test_*.cpp is a program on the VapourSynth C API (libvapoursynth only, no
+  # VSScript, no Python; see tests/vs_harness.h). Each gets NVVSR_PLUGIN (the plugin built above) and
+  # NVVSR_LIBDIR_DEFAULT (the unzipped wheel from tools/libdir.sh; a NVVSR_LIBDIR in the caller's
+  # environment wins). Run: NVVSR_LIBDIR=$(tools/libdir.sh) ctest --test-dir vapoursynth/build
+  enable_testing()
+  find_library(VAPOURSYNTH_LIBRARY vapoursynth REQUIRED)
+  # The core finds its built-in plugins next to the library path it was loaded from; Arch makes
+  # /usr/lib/libvapoursynth.so a symlink into the python package, so link the real file (build RPATH).
+  file(REAL_PATH "${VAPOURSYNTH_LIBRARY}" VAPOURSYNTH_LIBRARY_REAL)
+  execute_process(COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/../tools/libdir.sh" OUTPUT_VARIABLE NVVSR_TEST_LIBDIR
+                  OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+  file(GLOB NVVSR_VS_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_*.cpp")
+  foreach(src IN LISTS NVVSR_VS_TEST_SOURCES)
+    get_filename_component(tname "${src}" NAME_WE)
+    add_executable(${tname} "${src}")
+    target_include_directories(${tname} PRIVATE "${VAPOURSYNTH_INCLUDE_DIR}")
+    target_link_libraries(${tname} PRIVATE "${VAPOURSYNTH_LIBRARY_REAL}")
+    target_compile_options(${tname} PRIVATE -Wall -Wextra)
+    add_test(NAME ${tname} COMMAND ${tname})
+    set_tests_properties(${tname} PROPERTIES TIMEOUT 600
+      ENVIRONMENT "NVVSR_PLUGIN=$<TARGET_FILE:vsnvvsr>;NVVSR_LIBDIR_DEFAULT=${NVVSR_TEST_LIBDIR}")
+  endforeach()
+  add_test(NAME test_linking COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_linking.sh" "$<TARGET_FILE:vsnvvsr>")
 endif()
 
 install(TARGETS vsnvvsr LIBRARY DESTINATION lib/nvvsr)

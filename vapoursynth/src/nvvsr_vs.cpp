@@ -1,6 +1,7 @@
 // nvvsr VapourSynth plugin (API 4): GPU super resolution of 8-bit 4:2:0 video via libnvvsr.
 //
 //   core.nvvsr.Upscale(clip, width, height, quality, strength, matrix, range, pool, fps, format)
+//   core.nvvsr.Auto(clip, display_w, display_h, dar_w, dar_h, fps, options)
 //
 // Input  : constant-format YUV420P8, even dimensions.
 // Output : RGB24 (planar R,G,B, full range) by default, or YUV420P8 with format="yuv420p8" (same
@@ -10,7 +11,15 @@
 //          created lazily (the first one in Upscale(), so GPU/SDK problems surface as an ordinary
 //          VapourSynth error there) and are freed with the filter.
 // Errors : nothing here throws into VapourSynth or aborts; a failed frame becomes a frame error.
-//          The calling script decides about falling back to pass-through (see mpv/vsr.vpy).
+//          Upscale raises on bad arguments, unsupported input and unavailable SR/GPU; Auto is the caller that
+//          turns every such case into pass-through.
+//
+// Auto   : the decision logic of mpv/vsr.vpy. Returns Upscale(clip, format="yuv420p8") sized to fit the display
+//          (scale = min(display_w/dar_w, display_h/dar_h, 4), dar defaulting to the clip size, even sizes, never
+//          below the source), or the input clip itself with one "nvvsr: ..., pass-through" line on stderr when the
+//          clip is not constant 8-bit 4:2:0, the display size is unknown (arguments, else env NVVSR_DISPLAY=WxH),
+//          nothing would be gained, `options` ("key=value;key=value": quality, strength, pool, matrix, range) is
+//          malformed, or Upscale fails. It never raises.
 //
 // Only the public header core/include/nvvsr.h of libnvvsr is used.
 #include <algorithm>
@@ -23,6 +32,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <exception>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -461,6 +471,158 @@ void VS_CC upscaleCreate(const VSMap *in, VSMap *out, void *, VSCore *core, cons
   }
 }
 
+// ---- Auto: the decision logic of mpv/vsr.vpy -------------------------------------------------------------------------
+
+std::string trim(const std::string &s) {
+  size_t a = 0, b = s.size();
+  while (a < b && std::isspace((unsigned char)s[a])) ++a;
+  while (b > a && std::isspace((unsigned char)s[b - 1])) --b;
+  return s.substr(a, b - a);
+}
+
+// Whole-string numbers (surrounding blanks allowed); strtol saturates, which is what the pool clamp wants.
+bool parse_int(const std::string &text, long *v) {
+  const std::string s = trim(text);
+  char *end = nullptr;
+  *v = std::strtol(s.c_str(), &end, 10);
+  return !s.empty() && *end == '\0';
+}
+
+bool parse_real(const std::string &text, double *v) {
+  const std::string s = trim(text);
+  char *end = nullptr;
+  *v = std::strtod(s.c_str(), &end);
+  return !s.empty() && *end == '\0';
+}
+
+struct MapFree {
+  const VSAPI *api;
+  void operator()(VSMap *m) const { api->freeMap(m); }
+};
+using MapPtr = std::unique_ptr<VSMap, MapFree>;
+
+// Returns a new reference to the upscaled clip, or NULL with *why set (the caller passes `node` through).
+VSNode *auto_upscale(const VSMap *in, VSNode *node, VSCore *core, const VSAPI *vsapi, std::string *why) {
+  auto fail = [&](std::string msg) -> VSNode * {
+    *why = std::move(msg);
+    return nullptr;
+  };
+  const VSVideoInfo *vi = vsapi->getVideoInfo(node);
+  const VSVideoFormat &f = vi->format;
+  if (!vsh::isConstantVideoFormat(vi)) return fail("variable format/size");
+  if (f.colorFamily != cfYUV || f.sampleType != stInteger || f.bitsPerSample != 8 || f.subSamplingW != 1 || f.subSamplingH != 1) {
+    char name[32] = "unknown";
+    vsapi->getVideoFormatName(&f, name);
+    return fail(format("%s is not 8-bit 4:2:0", name));
+  }
+
+  auto geti = [&](const char *key) {
+    int err = 0;
+    const int64_t v = vsapi->mapGetInt(in, key, 0, &err);
+    return err ? (int64_t)0 : v;
+  };
+  int64_t dw = geti("display_w"), dh = geti("display_h");
+  if (dw <= 0 || dh <= 0) {  // the player cannot tell (e.g. --vo=null): NVVSR_DISPLAY="WxH"
+    dw = dh = 0;
+    const char *env = std::getenv("NVVSR_DISPLAY");
+    const std::string e = env ? env : "";
+    const size_t x = e.find('x');
+    long w = 0, h = 0;
+    if (x != std::string::npos && parse_int(e.substr(0, x), &w) && parse_int(e.substr(x + 1), &h)) {
+      dw = w;
+      dh = h;
+    }
+  }
+  if (dw <= 0 || dh <= 0) return fail("display size unknown (set NVVSR_DISPLAY=WxH)");
+  // Scale the pixel grid by the factor that fits the displayed picture (anamorphic sources included).
+  const int64_t aw = geti("dar_w"), ah = geti("dar_h");
+  const double vw = aw > 0 ? (double)aw : vi->width, vh = ah > 0 ? (double)ah : vi->height;
+  const double scale = std::min({(double)dw / vw, (double)dh / vh, 4.0});
+  const int out_w = std::max(even_round(vi->width * scale), vi->width);
+  const int out_h = std::max(even_round(vi->height * scale), vi->height);
+  if (out_w == vi->width && out_h == vi->height)
+    return fail(format("nothing to gain on a %lldx%lld display from a %dx%d source", (long long)dw, (long long)dh, vi->width, vi->height));
+
+  // options: "key=value;key=value" (',' also separates). Later items replace earlier ones.
+  int err = 0;
+  const char *od = vsapi->mapGetData(in, "options", 0, &err);
+  std::string text = !err && od ? std::string(od, (size_t)std::max(vsapi->mapGetDataSize(in, "options", 0, nullptr), 0)) : "";
+  std::replace(text.begin(), text.end(), ',', ';');
+  std::map<std::string, std::string> opts;
+  for (size_t pos = 0; pos <= text.size();) {
+    size_t end = text.find(';', pos);
+    if (end == std::string::npos) end = text.size();
+    const std::string item = trim(text.substr(pos, end - pos));
+    pos = end + 1;
+    const size_t eq = item.find('=');
+    if (eq != std::string::npos) {
+      std::string key = trim(item.substr(0, eq));
+      for (char &c : key) c = (char)std::tolower((unsigned char)c);
+      opts[key] = trim(item.substr(eq + 1));
+    } else if (!item.empty()) {
+      std::fprintf(stderr, "nvvsr: ignoring option item '%s' (expected key=value)\n", item.c_str());
+    }
+  }
+
+  MapPtr args(vsapi->createMap(), MapFree{vsapi});
+  VSMap *a = args.get();
+  vsapi->mapSetNode(a, "clip", node, maReplace);
+  vsapi->mapSetInt(a, "width", out_w, maReplace);
+  vsapi->mapSetInt(a, "height", out_h, maReplace);
+  vsapi->mapSetData(a, "format", "yuv420p8", -1, dtUtf8, maReplace);  // mpv accepts YUV output only
+  const double fps = vsapi->mapGetFloat(in, "fps", 0, &err);
+  if (!err && fps > 0) vsapi->mapSetFloat(a, "fps", fps, maReplace);
+  long n = 0;
+  double x = 0;
+  std::string unknown;
+  for (const auto &kv : opts) {
+    const std::string &k = kv.first, &v = kv.second;
+    if (k == "quality" || k == "matrix") {  // validated by Upscale
+      vsapi->mapSetData(a, k.c_str(), v.data(), (int)v.size(), dtUtf8, maReplace);
+    } else if (k == "strength") {
+      if (!parse_real(v, &x)) return fail("strength '" + v + "' is not a number");
+      vsapi->mapSetFloat(a, "strength", x, maReplace);
+    } else if (k == "pool") {
+      if (!parse_int(v, &n)) return fail("pool '" + v + "' is not an integer");
+      vsapi->mapSetInt(a, "pool", std::min(std::max(n, 1L), (long)kMaxPool), maReplace);
+    } else if (k == "range") {
+      if (!parse_int(v, &n)) return fail("range '" + v + "' is not an integer");
+      vsapi->mapSetInt(a, "range", n, maReplace);
+    } else {
+      unknown += (unknown.empty() ? "" : ", ") + k;
+    }
+  }
+  if (!unknown.empty()) std::fprintf(stderr, "nvvsr: ignoring unknown options: %s\n", unknown.c_str());
+
+  MapPtr res(vsapi->createMap(), MapFree{vsapi});
+  upscaleCreate(a, res.get(), nullptr, core, vsapi);  // all argument checks and the GPU/SDK probe live there
+  if (const char *e = vsapi->mapGetError(res.get())) return fail(e);
+  VSNode *up = vsapi->mapGetNode(res.get(), "clip", 0, &err);
+  if (err || !up) return fail("Upscale returned no clip");
+  return up;
+}
+
+// Auto never raises: whatever is unsuitable or fails, the result is the input clip and one line on stderr says why.
+void VS_CC autoCreate(const VSMap *in, VSMap *out, void *, VSCore *core, const VSAPI *vsapi) {
+  VSNode *node = vsapi->mapGetNode(in, "clip", 0, nullptr);
+  std::string why;
+  VSNode *up = nullptr;
+  try {
+    up = auto_upscale(in, node, core, vsapi, &why);
+  } catch (const std::exception &e) {
+    why = std::string("internal error: ") + e.what();
+  } catch (...) {
+    why = "internal error";
+  }
+  if (up) {
+    vsapi->freeNode(node);
+  } else {
+    std::fprintf(stderr, "nvvsr: %s, pass-through\n", why.c_str());
+    up = node;
+  }
+  vsapi->mapConsumeNode(out, "clip", up, maReplace);
+}
+
 }  // namespace
 
 VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin *plugin, const VSPLUGINAPI *vspapi) {
@@ -470,4 +632,7 @@ VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin *plugin, const VSPLUGINAPI
                            "clip:vnode;width:int:opt;height:int:opt;quality:data:opt;strength:float:opt;"
                            "matrix:data:opt;range:int:opt;pool:int:opt;fps:float:opt;format:data:opt;",
                            "clip:vnode;", upscaleCreate, nullptr, plugin);
+  vspapi->registerFunction("Auto",
+                           "clip:vnode;display_w:int:opt;display_h:int:opt;dar_w:int:opt;dar_h:int:opt;fps:float:opt;options:data:opt;",
+                           "clip:vnode;", autoCreate, nullptr, plugin);
 }
