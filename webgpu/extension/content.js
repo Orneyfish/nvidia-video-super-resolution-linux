@@ -24,7 +24,7 @@
     clearInterval(active.timer); active.ro.disconnect(); active.up.destroy(); active.canvas.remove(); active = null;
   };
 
-  async function start(video, powerPreference = 'low-power') {  // low-power = the iGPU Chrome composites on (hybrid laptops)
+  async function start(video) {  // NVIDIA only (user rule: never the iGPU); Chrome itself must run on the RTX or the frame import fails
     const dpr = devicePixelRatio, box = video.getBoundingClientRect();
     if (!video.videoHeight || Math.min(box.width * dpr / video.videoWidth, box.height * dpr / video.videoHeight) < 1.02) return log('nothing to gain', video.videoWidth + 'x' + video.videoHeight);
     const bat = await navigator.getBattery?.().catch(() => null);
@@ -35,14 +35,13 @@
     place(); video.after(canvas);
     try {
       const { VideoUpscaler } = await import(chrome.runtime.getURL('src/upscaler.js'));
-      const up = await VideoUpscaler.create(video, canvas, { ...OPTS, powerPreference, onError: e => {
-        log('failed', e.code, e.message); stop();
-        if (e.code === 'import-failed' && powerPreference === 'low-power') start(video, 'high-performance'); else badge('SR failed');
+      const up = await VideoUpscaler.create(video, canvas, { ...OPTS, powerPreference: 'high-performance', onError: e => {
+        log('failed', e.code, e.message); stop(); badge('SR failed');
       } });
-      if (!document.fullscreenElement) { up.destroy(); canvas.remove(); return; }
+      if (up.adapterInfo.vendor !== 'nvidia' || !document.fullscreenElement) { up.destroy(); canvas.remove(); return log('off:', up.adapterInfo.vendor, 'adapter or fullscreen left'); }
       const ro = new ResizeObserver(place); ro.observe(video);
       const timer = setInterval(() => { place(); report({ stats: up.stats() }); }, 2000);
-      active = { up, canvas, ro, timer }; up.start(); badge('SR'); log('on', powerPreference, video.videoWidth + 'x' + video.videoHeight);
+      active = { up, canvas, ro, timer }; up.start(); badge('SR'); log('on', up.adapterInfo.vendor, video.videoWidth + 'x' + video.videoHeight);
     } catch (e) { canvas.remove(); log('failed', e.code || e.name, e.message); badge('SR failed'); }
   }
 

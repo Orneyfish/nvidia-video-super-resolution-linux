@@ -21,21 +21,43 @@ up.start(); up.stats(); up.setMode('fsr'); up.destroy();
 `content.js` (about 60 lines) runs on every page and frame. On `fullscreenchange` it finds the biggest `<video>` in the
 fullscreen element and, if the picture is smaller than the screen and the machine is on AC power, lays a canvas over it and
 runs `VideoUpscaler` (Anime4K CNN-S). Leaving fullscreen, `Alt+S`, an error or DRM video give back the plain video; a small
-semi-transparent "SR" / "SR off" / "SR failed" badge shows for 1.5 s. It asks for the `low-power` adapter first (the iGPU
-Chrome composites on, which keeps the RTX asleep) and retries `high-performance` only on `import-failed`.
-`extension/src` is a symlink to `../src`.
+semi-transparent "SR" / "SR off" / "SR failed" badge shows for 1.5 s. **NVIDIA only (user rule: never the iGPU):** it
+requests the `high-performance` adapter and switches itself off unless that is an NVIDIA GPU. `extension/src` is a symlink
+to `../src`. These are CUDA-core render passes through WebGPU, not tensor cores and not NVIDIA's VSR network (see "NVIDIA
+decode and tensor cores" below).
 
 Load it: `chrome://extensions` -> Developer mode -> Load unpacked -> this repository's `webgpu/extension`. Chrome needs
 WebGPU on Linux: with `--ignore-gpu-blocklist` (already in `~/.config/chrome-flags.conf` here) both adapters appear, without
 it `requestAdapter()` returns null and the extension logs `no-adapter` and does nothing.
 
 Tested 2026-10-28 on YouTube ("Me at the zoo", 320x240) in a real Chrome window on the live Hyprland desktop
-(`test/ext_drive.cpp`): `[nvvsr] on low-power 320x240`, fullscreen box 1920x1440, canvas 1280x960 (the 4x cap), and a
-screenshot with the canvas differs from one without it (38.1 dB PSNR between them; the canvas is a little crisper on edges).
-In a normal Chrome session the NVIDIA adapter cannot import Chrome's video frames at all (`import-failed`, "Requested
-allocation size is smaller than the image requires"), so on this hybrid laptop only the Intel adapter is usable in-page; the
-Intel iGPU ran every mode at 30.16 fps with 0 drops there. Not yet tried: Crunchyroll (DRM video cannot be imported, it must
-fall back to the plain video) and the YouTube web app in the user's own profile.
+(`test/ext_drive.cpp`): with the Intel adapter (before the NVIDIA-only rule) `[nvvsr] on low-power 320x240`, fullscreen box
+1920x1440, canvas 1280x960 (the 4x cap), and a screenshot with the canvas differs from one without it (38.1 dB PSNR between
+them; a little crisper on edges). In a normal Chrome session the NVIDIA adapter cannot import Chrome's video frames
+(`import-failed`, "Requested allocation size is smaller than the image requires") because Chrome composites on the iGPU.
+With Chrome's whole stack on the RTX (`VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json`, `--use-angle=vulkan
+--use-vulkan=native --enable-features=Vulkan,DefaultANGLEVulkan,VulkanFromANGLE`) the extension runs on the NVIDIA adapter
+(`[nvvsr] on nvidia 320x240`). Not yet tried: Crunchyroll (DRM video cannot be imported, it must fall back to the plain
+video) and the YouTube web app in the user's own profile.
+
+## NVIDIA decode and tensor cores (measured 2026-10-28, Chrome 156)
+
+The user wants NVDEC for decoding and tensor cores for the upscaling, no iGPU. In Chrome on this machine:
+
+- **NVDEC works** through VA-API (`libva-nvidia-driver` is installed): `LIBVA_DRIVER_NAME=nvidia NVD_BACKEND=direct
+  __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia`, `--ozone-platform=wayland --use-gl=angle --use-angle=gl
+  --enable-features=VaapiOnNvidiaGPUs,AcceleratedVideoDecodeLinuxGL,AcceleratedVideoDecodeLinuxZeroCopyGL,VaapiIgnoreDriverChecks
+  --disable-features=UseChromeOSDirectVideoDecoder` makes `mediaCapabilities` report H.264 and VP9 as power efficient
+  (hardware). Real decoder load was not measured (the 240p test clip is too small for `nvidia-smi dmon` to show it).
+- **VA-API decode and WebGPU on the RTX exclude each other**: WebGPU needs the Vulkan feature, and with it Chrome turns
+  VA-API off (`powerEfficient` false in every combination tried); without Vulkan `requestAdapter()` is null.
+- WebGPU shaders would not use tensor cores anyway. The only tensor-core upscaler here is NVIDIA's VSR network (libnvvsr).
+
+So the plan that fits is: Chrome decodes on NVDEC with the flags above and shows a plain canvas; a local C++ daemon runs
+libnvvsr on the RTX; the extension sends each decoded frame as I420 (`VideoFrame.copyTo`, 3.1 MB at 1080p) over a localhost
+WebSocket and draws the upscaled I420 reply (5.5 MB at 1440p) from a `VideoFrame`: about 260 MB/s at 30 fps. Open risks:
+the page's CSP for WebSockets from a content script, the cost of reading a VA-API frame back, and the 1 to 2 frame lag
+behind the audio.
 
 `test/ext_drive.cpp` (C++) drives Chrome through `--remote-debugging-pipe`: `--load-extension` is gone in Chrome 156 and
 remote debugging is refused on the default profile directory, so it uses `Extensions.loadUnpacked` on a scratch profile:
@@ -87,10 +109,11 @@ fullscreen (video or container) work; an insecure origin has no `navigator.gpu`.
 
 ## Recommendation
 
-On this hybrid laptop use the default (Intel) path: it keeps the RTX asleep and holds 30 fps in every mode tried. Default
-mode **CNN-S** (best quality per millisecond), FSR as the cheaper fallback, never the restore variants (they lower the
-score on natural video), CNN-M only when there is headroom. Expect a modest gain, about 1 dB and 0.01 SSIM over bilinear:
-Anime4K is tuned for anime. This is the fallback for sites; mpv and VLC use NVIDIA's far stronger network.
+The user wants the RTX only (NVDEC + tensor cores), so the Intel adapter is not used by the extension, even though it held
+30 fps in every mode tried and would keep the RTX asleep. The in-page WebGPU shaders (default **CNN-S**, FSR as the cheaper
+fallback, never the restore variants, which lower the score on natural video) gain only about 1 dB and 0.01 SSIM over
+bilinear (Anime4K is tuned for anime) and cannot be combined with NVDEC in Chrome; the NVIDIA VSR daemon described above
+is the route that matches the requirement, and mpv and VLC already use that network.
 
 ## Running the tests
 
