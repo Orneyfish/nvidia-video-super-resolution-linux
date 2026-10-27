@@ -36,6 +36,7 @@ foreach(src ${NVC_TEST_SOURCES})
   target_link_libraries(${name} PRIVATE nvc)
   add_test(NAME ${name} COMMAND ${name})
 endforeach()
+add_test(NAME test_launcher COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_launcher.sh)
 
 if(NVC_BUILD_APP)
   pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4)
