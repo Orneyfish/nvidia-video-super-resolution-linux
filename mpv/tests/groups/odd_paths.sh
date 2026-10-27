@@ -1,8 +1,24 @@
 #!/bin/bash
-# Group "odd_paths" (integration.py odd_paths()): installation layouts (odd script directory, config directory).
+# Group "odd_paths": installation layouts (odd script directory, config directory) and where vsr.vpy looks for the
+# plugin (next to the script, ../lib, ../vapoursynth/build, NVVSR_PLUGIN).
 
 _vf_param() {  # _vf_param LABEL KEY: a parameter of the vf entry with that label, empty when there is none
     r_ctl get vf 2>/dev/null | jq -r --arg l "$1" --arg k "$2" '.[]? | select(.label == $l) | .params[$k] // empty' | head -n 1
+}
+
+_vpy_playing() { local t; t=$(r_get time-pos 0); [ "${t%.*}" -ge 1 ] 2>/dev/null; }
+
+_vpy_lookup() {  # _vpy_lookup NAME SCRIPT WANT [PLUGIN]: mpv plays with SCRIPT as vsr.vpy, NVVSR_PLUGIN unset (or PLUGIN)
+    local name=$1 script=$2 want=$3 plugin=${4-} saved=$NVVSR_PLUGIN log p=1
+    unset NVVSR_PLUGIN
+    if r_open --script "" --extra "--vf=vapoursynth=file=$script" ${plugin:+--env "NVVSR_PLUGIN=$plugin"} v720p30.mp4; then
+        r_wait 10 _vpy_playing; p=$?
+        log=$(r_log | grep -F 'vsr.vpy: pass-through' | head -n 1)
+        [ $p = 0 ] && [[ $log == *"Failed to load $want"* ]]
+        check "$name" $? "playing=$p log: $log"
+        r_close
+    fi
+    export NVVSR_PLUGIN=$saved
 }
 
 group_odd_paths() {
@@ -63,4 +79,19 @@ group_odd_paths() {
         check "quality=streaming_ultra is passed through and accepted" $? "$on $ud"
         r_close
     fi
+
+    # Empty .so files make LoadPlugin fail; the pass-through line names the path vsr.vpy chose.
+    local lk=$T_SCR/lookup l
+    rm -rf "$lk"
+    for l in lay1 lay2 lay3; do mkdir -p "$lk/$l/mpv"; cp "$T_REPO/mpv/vsr.vpy" "$lk/$l/mpv/"; done
+    mkdir -p "$lk/lay1/lib" "$lk/lay2/lib"
+    : >"$lk/lay1/lib/libvsnvvsr.so"; : >"$lk/lay2/lib/libvsnvvsr.so"; : >"$lk/lay2/mpv/libvsnvvsr.so"
+    _vpy_lookup "vsr.vpy plugin lookup: <script>/../lib/libvsnvvsr.so (installed layout)" \
+        "$lk/lay1/mpv/vsr.vpy" "$lk/lay1/lib/libvsnvvsr.so"
+    _vpy_lookup "vsr.vpy plugin lookup: next to the script wins" \
+        "$lk/lay2/mpv/vsr.vpy" "$lk/lay2/mpv/libvsnvvsr.so"
+    _vpy_lookup "vsr.vpy plugin lookup: none found -> the development path" \
+        "$lk/lay3/mpv/vsr.vpy" "$lk/lay3/vapoursynth/build/libvsnvvsr.so"
+    _vpy_lookup "vsr.vpy plugin lookup: NVVSR_PLUGIN wins" \
+        "$lk/lay1/mpv/vsr.vpy" /x/y.so /x/y.so
 }
