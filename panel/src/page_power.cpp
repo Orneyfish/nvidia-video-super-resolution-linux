@@ -74,6 +74,7 @@ GtkWidget *add_row(AdwPreferencesGroup *group, const char *title, const char *su
 // A "title ... value" row; returns the value label.
 GtkWidget *kv_row(AdwPreferencesGroup *group, const char *title) {
   GtkWidget *value = css_label("-", "nvc-muted");
+  gtk_label_set_wrap(GTK_LABEL(value), FALSE);  // a wrapping suffix label is squeezed to one word per line
   gtk_label_set_xalign(GTK_LABEL(value), 1);
   gtk_label_set_justify(GTK_LABEL(value), GTK_JUSTIFY_RIGHT);
   gtk_label_set_selectable(GTK_LABEL(value), TRUE);
