@@ -100,6 +100,7 @@ Every subagent brief is one small task:
 - **Stop rule:** the same problem fails twice -> stop and report. No scope growth.
 - **Report <= 10 lines:** files changed, verify result with counts, what was skipped, risk.
 - **Model:** Haiku by default; Sonnet for real engineering (GTK window, config editor, plugin C++). No GPU unless the task says so; functional GPU runs may overlap, timing runs never (one at a time, Ollama idle).
+- **Scratch space:** `/tmp` is a 16 GB RAM-backed tmpfs shared by everything (the VLC suite alone left ~5 GB of frame captures per run and filled it on 2026-10-27, which blocked every tool). Tests that generate clips or captures delete them when done; check `df -h /tmp` before big runs.
 - Start the brief with: "Read CLAUDE.md (Rules, Coding style, Task sizing). No Python, not even one-liners. No commits, no sudo, real home untouched (scratch HOME under the scratchpad)."
 
 ## Agents (`.claude/agents/`)
