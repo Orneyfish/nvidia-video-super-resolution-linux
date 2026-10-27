@@ -1,0 +1,1404 @@
+[
+ {
+  "clip": "pixie_720p30.mp4",
+  "mode": "bilinear",
+  "wall": 15,
+  "videoTime": 15,
+  "stats": {
+   "state": "running",
+   "mode": "bilinear",
+   "source": [
+    1280,
+    720
+   ],
+   "target": [
+    2560,
+    1440
+   ],
+   "scale": 2,
+   "rendered": 448,
+   "completed": 448,
+   "droppedBusy": 0,
+   "droppedBuild": 0,
+   "videoPresented": 450,
+   "missed": 1,
+   "fps": 29.87,
+   "inFlight": 0,
+   "rebuilds": 2,
+   "gpuErrors": 0,
+   "lastGpuError": null,
+   "cpuMs": {
+    "median": 0.4,
+    "p95": 0.6
+   },
+   "gpuMs": {
+    "median": 0.394,
+    "p95": 0.626,
+    "n": 240
+   },
+   "adapter": {
+    "vendor": "nvidia",
+    "architecture": "ampere",
+    "device": "0x24a0",
+    "description": "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
+    "backend": "vulkan"
+   },
+   "error": null
+  },
+  "cadence": {
+   "n": 446,
+   "meanMs": 33.534,
+   "p95Ms": 54.2,
+   "maxMs": 70.4,
+   "presentedFrames": 449,
+   "presentedFps": 29.9
+  },
+  "monitor": {
+   "seconds": 15.2,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 2,
+    "cage": 0.3,
+    "gpu-process": 19.4,
+    "other": 0,
+    "renderer": 8.9,
+    "utility": 1.3,
+    "zygote": 0
+   },
+   "gpu": {
+    "samples": 61,
+    "powerW": {
+     "avg": 25.3,
+     "max": 54
+    },
+    "clockMHz": {
+     "median": 210,
+     "max": 1785
+    },
+    "memClockMHz": 405,
+    "vramMiB": {
+     "max": 280
+    },
+    "utilPct": {
+     "avg": 10,
+     "max": 19
+    },
+    "pstates": "P0/P3/P5/P8",
+    "tempC": 50
+   }
+  }
+ },
+ {
+  "clip": "pixie_720p30.mp4",
+  "mode": "fsr",
+  "wall": 15,
+  "videoTime": 15,
+  "stats": {
+   "state": "running",
+   "mode": "fsr",
+   "source": [
+    1280,
+    720
+   ],
+   "target": [
+    2560,
+    1440
+   ],
+   "scale": 2,
+   "rendered": 450,
+   "completed": 450,
+   "droppedBusy": 0,
+   "droppedBuild": 0,
+   "videoPresented": 450,
+   "missed": 0,
+   "fps": 30,
+   "inFlight": 0,
+   "rebuilds": 2,
+   "gpuErrors": 0,
+   "lastGpuError": null,
+   "cpuMs": {
+    "median": 0.4,
+    "p95": 0.6
+   },
+   "gpuMs": {
+    "median": 3.682,
+    "p95": 3.921,
+    "n": 240
+   },
+   "adapter": {
+    "vendor": "nvidia",
+    "architecture": "ampere",
+    "device": "0x24a0",
+    "description": "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
+    "backend": "vulkan"
+   },
+   "error": null
+  },
+  "cadence": {
+   "n": 448,
+   "meanMs": 33.306,
+   "p95Ms": 54.3,
+   "maxMs": 71,
+   "presentedFrames": 449,
+   "presentedFps": 29.9
+  },
+  "monitor": {
+   "seconds": 18.2,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 0.8,
+    "cage": 0.3,
+    "gpu-process": 17.8,
+    "other": 0,
+    "renderer": 7.8,
+    "utility": 0,
+    "zygote": 0
+   },
+   "gpu": {
+    "samples": 72,
+    "powerW": {
+     "avg": 21.9,
+     "max": 33.8
+    },
+    "clockMHz": {
+     "median": 210,
+     "max": 1410
+    },
+    "memClockMHz": 405,
+    "vramMiB": {
+     "max": 320
+    },
+    "utilPct": {
+     "avg": 16.5,
+     "max": 28
+    },
+    "pstates": "P0/P5/P8",
+    "tempC": 45
+   }
+  }
+ },
+ {
+  "clip": "pixie_720p30.mp4",
+  "mode": "cnn_S",
+  "wall": 15,
+  "videoTime": 15,
+  "stats": {
+   "state": "running",
+   "mode": "cnn-S",
+   "source": [
+    1280,
+    720
+   ],
+   "target": [
+    2560,
+    1440
+   ],
+   "scale": 2,
+   "rendered": 449,
+   "completed": 449,
+   "droppedBusy": 0,
+   "droppedBuild": 0,
+   "videoPresented": 450,
+   "missed": 0,
+   "fps": 29.93,
+   "inFlight": 0,
+   "rebuilds": 2,
+   "gpuErrors": 0,
+   "lastGpuError": null,
+   "cpuMs": {
+    "median": 0.4,
+    "p95": 0.6
+   },
+   "gpuMs": {
+    "median": 4.576,
+    "p95": 5.017,
+    "n": 240
+   },
+   "adapter": {
+    "vendor": "nvidia",
+    "architecture": "ampere",
+    "device": "0x24a0",
+    "description": "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
+    "backend": "vulkan"
+   },
+   "error": null
+  },
+  "cadence": {
+   "n": 447,
+   "meanMs": 33.436,
+   "p95Ms": 54.2,
+   "maxMs": 71,
+   "presentedFrames": 449,
+   "presentedFps": 29.9
+  },
+  "monitor": {
+   "seconds": 18.3,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 1,
+    "cage": 0.3,
+    "gpu-process": 18,
+    "other": 0,
+    "renderer": 7.8,
+    "utility": 0.3,
+    "zygote": 0.1
+   },
+   "gpu": {
+    "samples": 73,
+    "powerW": {
+     "avg": 23,
+     "max": 36
+    },
+    "clockMHz": {
+     "median": 210,
+     "max": 1410
+    },
+    "memClockMHz": 405,
+    "vramMiB": {
+     "max": 317
+    },
+    "utilPct": {
+     "avg": 19,
+     "max": 33
+    },
+    "pstates": "P0/P5/P8",
+    "tempC": 45
+   }
+  }
+ },
+ {
+  "clip": "pixie_720p30.mp4",
+  "mode": "cnn_M",
+  "wall": 15,
+  "videoTime": 15,
+  "stats": {
+   "state": "running",
+   "mode": "cnn-M",
+   "source": [
+    1280,
+    720
+   ],
+   "target": [
+    2560,
+    1440
+   ],
+   "scale": 2,
+   "rendered": 449,
+   "completed": 449,
+   "droppedBusy": 0,
+   "droppedBuild": 0,
+   "videoPresented": 450,
+   "missed": 0,
+   "fps": 29.93,
+   "inFlight": 0,
+   "rebuilds": 2,
+   "gpuErrors": 0,
+   "lastGpuError": null,
+   "cpuMs": {
+    "median": 0.4,
+    "p95": 0.7
+   },
+   "gpuMs": {
+    "median": 9.389,
+    "p95": 10.489,
+    "n": 240
+   },
+   "adapter": {
+    "vendor": "nvidia",
+    "architecture": "ampere",
+    "device": "0x24a0",
+    "description": "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
+    "backend": "vulkan"
+   },
+   "error": null
+  },
+  "cadence": {
+   "n": 447,
+   "meanMs": 33.454,
+   "p95Ms": 53.9,
+   "maxMs": 70.6,
+   "presentedFrames": 449,
+   "presentedFps": 29.9
+  },
+  "monitor": {
+   "seconds": 18.3,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 2,
+    "cage": 0.3,
+    "gpu-process": 18.6,
+    "other": 0,
+    "renderer": 7.6,
+    "utility": 0.4,
+    "zygote": 0.1
+   },
+   "gpu": {
+    "samples": 73,
+    "powerW": {
+     "avg": 24.1,
+     "max": 34.1
+    },
+    "clockMHz": {
+     "median": 360,
+     "max": 1410
+    },
+    "memClockMHz": 405,
+    "vramMiB": {
+     "max": 347
+    },
+    "utilPct": {
+     "avg": 26.2,
+     "max": 52
+    },
+    "pstates": "P0/P5/P8",
+    "tempC": 45
+   }
+  }
+ },
+ {
+  "clip": "pixie_1080p30.mp4",
+  "mode": "bilinear",
+  "wall": 15,
+  "videoTime": 15,
+  "stats": {
+   "state": "running",
+   "mode": "bilinear",
+   "source": [
+    1920,
+    1080
+   ],
+   "target": [
+    2560,
+    1440
+   ],
+   "scale": 1.333,
+   "rendered": 446,
+   "completed": 446,
+   "droppedBusy": 0,
+   "droppedBuild": 0,
+   "videoPresented": 450,
+   "missed": 3,
+   "fps": 29.73,
+   "inFlight": 0,
+   "rebuilds": 2,
+   "gpuErrors": 0,
+   "lastGpuError": null,
+   "cpuMs": {
+    "median": 0.4,
+    "p95": 0.6
+   },
+   "gpuMs": {
+    "median": 0.862,
+    "p95": 1.358,
+    "n": 240
+   },
+   "adapter": {
+    "vendor": "nvidia",
+    "architecture": "ampere",
+    "device": "0x24a0",
+    "description": "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
+    "backend": "vulkan"
+   },
+   "error": null
+  },
+  "cadence": {
+   "n": 444,
+   "meanMs": 33.639,
+   "p95Ms": 54.4,
+   "maxMs": 71,
+   "presentedFrames": 449,
+   "presentedFps": 29.9
+  },
+  "monitor": {
+   "seconds": 18.2,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 3.7,
+    "cage": 0.3,
+    "gpu-process": 18.4,
+    "other": 0,
+    "renderer": 11.9,
+    "utility": 0.2,
+    "zygote": 0
+   },
+   "gpu": {
+    "samples": 73,
+    "powerW": {
+     "avg": 22.8,
+     "max": 36.4
+    },
+    "clockMHz": {
+     "median": 210,
+     "max": 1410
+    },
+    "memClockMHz": 405,
+    "vramMiB": {
+     "max": 329
+    },
+    "utilPct": {
+     "avg": 14.4,
+     "max": 25
+    },
+    "pstates": "P0/P5/P8",
+    "tempC": 45
+   }
+  }
+ },
+ {
+  "clip": "pixie_1080p30.mp4",
+  "mode": "fsr",
+  "wall": 15,
+  "videoTime": 15,
+  "stats": {
+   "state": "running",
+   "mode": "fsr",
+   "source": [
+    1920,
+    1080
+   ],
+   "target": [
+    2560,
+    1440
+   ],
+   "scale": 1.333,
+   "rendered": 450,
+   "completed": 450,
+   "droppedBusy": 0,
+   "droppedBuild": 0,
+   "videoPresented": 450,
+   "missed": 0,
+   "fps": 30,
+   "inFlight": 0,
+   "rebuilds": 2,
+   "gpuErrors": 0,
+   "lastGpuError": null,
+   "cpuMs": {
+    "median": 0.5,
+    "p95": 0.7
+   },
+   "gpuMs": {
+    "median": 3.189,
+    "p95": 3.457,
+    "n": 240
+   },
+   "adapter": {
+    "vendor": "nvidia",
+    "architecture": "ampere",
+    "device": "0x24a0",
+    "description": "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
+    "backend": "vulkan"
+   },
+   "error": null
+  },
+  "cadence": {
+   "n": 448,
+   "meanMs": 33.3,
+   "p95Ms": 54.2,
+   "maxMs": 71.1,
+   "presentedFrames": 449,
+   "presentedFps": 29.9
+  },
+  "monitor": {
+   "seconds": 18.2,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 0.6,
+    "cage": 0.3,
+    "gpu-process": 20.6,
+    "other": 0,
+    "renderer": 11.9,
+    "utility": 0,
+    "zygote": 0
+   },
+   "gpu": {
+    "samples": 73,
+    "powerW": {
+     "avg": 22.1,
+     "max": 34
+    },
+    "clockMHz": {
+     "median": 210,
+     "max": 1410
+    },
+    "memClockMHz": 405,
+    "vramMiB": {
+     "max": 368
+    },
+    "utilPct": {
+     "avg": 19.7,
+     "max": 35
+    },
+    "pstates": "P0/P5/P8",
+    "tempC": 45
+   }
+  }
+ },
+ {
+  "clip": "pixie_1080p30.mp4",
+  "mode": "cnn_S",
+  "wall": 15,
+  "videoTime": 15,
+  "stats": {
+   "state": "running",
+   "mode": "cnn-S",
+   "source": [
+    1920,
+    1080
+   ],
+   "target": [
+    2560,
+    1440
+   ],
+   "scale": 1.333,
+   "rendered": 450,
+   "completed": 450,
+   "droppedBusy": 0,
+   "droppedBuild": 0,
+   "videoPresented": 450,
+   "missed": 0,
+   "fps": 30,
+   "inFlight": 0,
+   "rebuilds": 2,
+   "gpuErrors": 0,
+   "lastGpuError": null,
+   "cpuMs": {
+    "median": 0.4,
+    "p95": 0.7
+   },
+   "gpuMs": {
+    "median": 5.342,
+    "p95": 12.36,
+    "n": 240
+   },
+   "adapter": {
+    "vendor": "nvidia",
+    "architecture": "ampere",
+    "device": "0x24a0",
+    "description": "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
+    "backend": "vulkan"
+   },
+   "error": null
+  },
+  "cadence": {
+   "n": 448,
+   "meanMs": 33.39,
+   "p95Ms": 54.2,
+   "maxMs": 71.5,
+   "presentedFrames": 449,
+   "presentedFps": 29.9
+  },
+  "monitor": {
+   "seconds": 18.2,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 0.5,
+    "cage": 0.3,
+    "gpu-process": 18.1,
+    "other": 0,
+    "renderer": 11.8,
+    "utility": 0,
+    "zygote": 0
+   },
+   "gpu": {
+    "samples": 73,
+    "powerW": {
+     "avg": 24.9,
+     "max": 34.1
+    },
+    "clockMHz": {
+     "median": 420,
+     "max": 1410
+    },
+    "memClockMHz": 810,
+    "vramMiB": {
+     "max": 469
+    },
+    "utilPct": {
+     "avg": 22.4,
+     "max": 53
+    },
+    "pstates": "P0/P5/P8",
+    "tempC": 45
+   }
+  }
+ },
+ {
+  "clip": "pixie_480p30.mp4",
+  "mode": "fsr",
+  "wall": 15,
+  "videoTime": 15,
+  "stats": {
+   "state": "running",
+   "mode": "fsr",
+   "source": [
+    852,
+    480
+   ],
+   "target": [
+    2560,
+    1440
+   ],
+   "scale": 3.005,
+   "rendered": 449,
+   "completed": 448,
+   "droppedBusy": 0,
+   "droppedBuild": 0,
+   "videoPresented": 450,
+   "missed": 0,
+   "fps": 29.93,
+   "inFlight": 1,
+   "rebuilds": 2,
+   "gpuErrors": 0,
+   "lastGpuError": null,
+   "cpuMs": {
+    "median": 0.5,
+    "p95": 0.7
+   },
+   "gpuMs": {
+    "median": 3.5,
+    "p95": 3.679,
+    "n": 240
+   },
+   "adapter": {
+    "vendor": "nvidia",
+    "architecture": "ampere",
+    "device": "0x24a0",
+    "description": "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
+    "backend": "vulkan"
+   },
+   "error": null
+  },
+  "cadence": {
+   "n": 447,
+   "meanMs": 33.461,
+   "p95Ms": 53.7,
+   "maxMs": 71,
+   "presentedFrames": 449,
+   "presentedFps": 29.9
+  },
+  "monitor": {
+   "seconds": 18.2,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 0.6,
+    "cage": 0.2,
+    "gpu-process": 16.7,
+    "other": 0,
+    "renderer": 6.3,
+    "utility": 0,
+    "zygote": 0
+   },
+   "gpu": {
+    "samples": 73,
+    "powerW": {
+     "avg": 22.9,
+     "max": 34.1
+    },
+    "clockMHz": {
+     "median": 210,
+     "max": 1410
+    },
+    "memClockMHz": 405,
+    "vramMiB": {
+     "max": 325
+    },
+    "utilPct": {
+     "avg": 16.3,
+     "max": 64
+    },
+    "pstates": "P0/P5/P8",
+    "tempC": 46
+   }
+  }
+ },
+ {
+  "clip": "pixie_480p30.mp4",
+  "mode": "cnn_S",
+  "wall": 15,
+  "videoTime": 15,
+  "stats": {
+   "state": "running",
+   "mode": "cnn-S",
+   "source": [
+    852,
+    480
+   ],
+   "target": [
+    2560,
+    1440
+   ],
+   "scale": 3.005,
+   "rendered": 450,
+   "completed": 450,
+   "droppedBusy": 0,
+   "droppedBuild": 0,
+   "videoPresented": 450,
+   "missed": 0,
+   "fps": 30,
+   "inFlight": 0,
+   "rebuilds": 2,
+   "gpuErrors": 0,
+   "lastGpuError": null,
+   "cpuMs": {
+    "median": 0.4,
+    "p95": 0.7
+   },
+   "gpuMs": {
+    "median": 4.256,
+    "p95": 4.43,
+    "n": 240
+   },
+   "adapter": {
+    "vendor": "nvidia",
+    "architecture": "ampere",
+    "device": "0x24a0",
+    "description": "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
+    "backend": "vulkan"
+   },
+   "error": null
+  },
+  "cadence": {
+   "n": 448,
+   "meanMs": 33.357,
+   "p95Ms": 53.8,
+   "maxMs": 70.2,
+   "presentedFrames": 449,
+   "presentedFps": 29.9
+  },
+  "monitor": {
+   "seconds": 18.2,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 0.5,
+    "cage": 0.3,
+    "gpu-process": 16,
+    "other": 0,
+    "renderer": 6.2,
+    "utility": 0,
+    "zygote": 0
+   },
+   "gpu": {
+    "samples": 73,
+    "powerW": {
+     "avg": 26.2,
+     "max": 41
+    },
+    "clockMHz": {
+     "median": 255,
+     "max": 1710
+    },
+    "memClockMHz": 405,
+    "vramMiB": {
+     "max": 361
+    },
+    "utilPct": {
+     "avg": 14,
+     "max": 29
+    },
+    "pstates": "P0/P3/P5/P8",
+    "tempC": 46
+   }
+  }
+ },
+ {
+  "clip": "pixie_720p60.mp4",
+  "mode": "bilinear",
+  "wall": 15,
+  "videoTime": 15,
+  "stats": {
+   "state": "running",
+   "mode": "bilinear",
+   "source": [
+    1280,
+    720
+   ],
+   "target": [
+    2560,
+    1440
+   ],
+   "scale": 2,
+   "rendered": 680,
+   "completed": 680,
+   "droppedBusy": 0,
+   "droppedBuild": 0,
+   "videoPresented": 850,
+   "missed": 169,
+   "fps": 45.33,
+   "inFlight": 0,
+   "rebuilds": 2,
+   "gpuErrors": 0,
+   "lastGpuError": null,
+   "cpuMs": {
+    "median": 0.4,
+    "p95": 0.6
+   },
+   "gpuMs": {
+    "median": 0.47,
+    "p95": 0.812,
+    "n": 240
+   },
+   "adapter": {
+    "vendor": "nvidia",
+    "architecture": "ampere",
+    "device": "0x24a0",
+    "description": "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
+    "backend": "vulkan"
+   },
+   "error": null
+  },
+  "cadence": {
+   "n": 678,
+   "meanMs": 22.091,
+   "p95Ms": 37,
+   "maxMs": 39,
+   "presentedFrames": 849,
+   "presentedFps": 56.6
+  },
+  "monitor": {
+   "seconds": 18.2,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 0.8,
+    "cage": 0.4,
+    "gpu-process": 22.2,
+    "other": 0,
+    "renderer": 11.5,
+    "utility": 0.1,
+    "zygote": 0
+   },
+   "gpu": {
+    "samples": 73,
+    "powerW": {
+     "avg": 21.6,
+     "max": 33.6
+    },
+    "clockMHz": {
+     "median": 210,
+     "max": 1410
+    },
+    "memClockMHz": 405,
+    "vramMiB": {
+     "max": 280
+    },
+    "utilPct": {
+     "avg": 16.1,
+     "max": 27
+    },
+    "pstates": "P0/P5/P8",
+    "tempC": 46
+   }
+  }
+ },
+ {
+  "clip": "pixie_720p60.mp4",
+  "mode": "fsr",
+  "wall": 15,
+  "videoTime": 15,
+  "stats": {
+   "state": "running",
+   "mode": "fsr",
+   "source": [
+    1280,
+    720
+   ],
+   "target": [
+    2560,
+    1440
+   ],
+   "scale": 2,
+   "rendered": 691,
+   "completed": 691,
+   "droppedBusy": 0,
+   "droppedBuild": 0,
+   "videoPresented": 851,
+   "missed": 159,
+   "fps": 46.07,
+   "inFlight": 0,
+   "rebuilds": 2,
+   "gpuErrors": 0,
+   "lastGpuError": null,
+   "cpuMs": {
+    "median": 0.4,
+    "p95": 0.6
+   },
+   "gpuMs": {
+    "median": 3.575,
+    "p95": 3.902,
+    "n": 240
+   },
+   "adapter": {
+    "vendor": "nvidia",
+    "architecture": "ampere",
+    "device": "0x24a0",
+    "description": "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
+    "backend": "vulkan"
+   },
+   "error": null
+  },
+  "cadence": {
+   "n": 689,
+   "meanMs": 21.755,
+   "p95Ms": 37.2,
+   "maxMs": 38.8,
+   "presentedFrames": 850,
+   "presentedFps": 56.7
+  },
+  "monitor": {
+   "seconds": 15.2,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 0.9,
+    "cage": 0.5,
+    "gpu-process": 25.6,
+    "other": 0,
+    "renderer": 13.9,
+    "utility": 0.1,
+    "zygote": 0
+   },
+   "gpu": {
+    "samples": 60,
+    "powerW": {
+     "avg": 24.8,
+     "max": 36.5
+    },
+    "clockMHz": {
+     "median": 240,
+     "max": 1410
+    },
+    "memClockMHz": 405,
+    "vramMiB": {
+     "max": 324
+    },
+    "utilPct": {
+     "avg": 25.3,
+     "max": 43
+    },
+    "pstates": "P0/P5/P8",
+    "tempC": 46
+   }
+  }
+ },
+ {
+  "clip": "pixie_720p60.mp4",
+  "mode": "cnn_S",
+  "wall": 15,
+  "videoTime": 15,
+  "stats": {
+   "state": "running",
+   "mode": "cnn-S",
+   "source": [
+    1280,
+    720
+   ],
+   "target": [
+    2560,
+    1440
+   ],
+   "scale": 2,
+   "rendered": 691,
+   "completed": 691,
+   "droppedBusy": 0,
+   "droppedBuild": 0,
+   "videoPresented": 850,
+   "missed": 158,
+   "fps": 46.07,
+   "inFlight": 0,
+   "rebuilds": 2,
+   "gpuErrors": 0,
+   "lastGpuError": null,
+   "cpuMs": {
+    "median": 0.4,
+    "p95": 0.6
+   },
+   "gpuMs": {
+    "median": 4.569,
+    "p95": 4.891,
+    "n": 240
+   },
+   "adapter": {
+    "vendor": "nvidia",
+    "architecture": "ampere",
+    "device": "0x24a0",
+    "description": "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
+    "backend": "vulkan"
+   },
+   "error": null
+  },
+  "cadence": {
+   "n": 689,
+   "meanMs": 21.754,
+   "p95Ms": 37,
+   "maxMs": 39.6,
+   "presentedFrames": 849,
+   "presentedFps": 56.6
+  },
+  "monitor": {
+   "seconds": 15.3,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 0.9,
+    "cage": 0.5,
+    "gpu-process": 26.3,
+    "other": 0,
+    "renderer": 13.6,
+    "utility": 0,
+    "zygote": 0
+   },
+   "gpu": {
+    "samples": 60,
+    "powerW": {
+     "avg": 25,
+     "max": 36.3
+    },
+    "clockMHz": {
+     "median": 315,
+     "max": 1410
+    },
+    "memClockMHz": 405,
+    "vramMiB": {
+     "max": 320
+    },
+    "utilPct": {
+     "avg": 24.7,
+     "max": 43
+    },
+    "pstates": "P0/P5/P8",
+    "tempC": 46
+   }
+  }
+ },
+ {
+  "clip": "pixie_720p60.mp4",
+  "mode": "cnn_M",
+  "wall": 15,
+  "videoTime": 15,
+  "stats": {
+   "state": "running",
+   "mode": "cnn-M",
+   "source": [
+    1280,
+    720
+   ],
+   "target": [
+    2560,
+    1440
+   ],
+   "scale": 2,
+   "rendered": 677,
+   "completed": 677,
+   "droppedBusy": 0,
+   "droppedBuild": 0,
+   "videoPresented": 866,
+   "missed": 187,
+   "fps": 45.13,
+   "inFlight": 0,
+   "rebuilds": 2,
+   "gpuErrors": 0,
+   "lastGpuError": null,
+   "cpuMs": {
+    "median": 0.4,
+    "p95": 0.6
+   },
+   "gpuMs": {
+    "median": 4.678,
+    "p95": 7.906,
+    "n": 240
+   },
+   "adapter": {
+    "vendor": "nvidia",
+    "architecture": "ampere",
+    "device": "0x24a0",
+    "description": "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
+    "backend": "vulkan"
+   },
+   "error": null
+  },
+  "cadence": {
+   "n": 675,
+   "meanMs": 22.151,
+   "p95Ms": 37.1,
+   "maxMs": 40.3,
+   "presentedFrames": 864,
+   "presentedFps": 57.6
+  },
+  "monitor": {
+   "seconds": 15.3,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 1,
+    "cage": 0.5,
+    "gpu-process": 23.3,
+    "other": 0,
+    "renderer": 13.8,
+    "utility": 0,
+    "zygote": 0
+   },
+   "gpu": {
+    "samples": 61,
+    "powerW": {
+     "avg": 27.4,
+     "max": 38
+    },
+    "clockMHz": {
+     "median": 510,
+     "max": 1410
+    },
+    "memClockMHz": 810,
+    "vramMiB": {
+     "max": 350
+    },
+    "utilPct": {
+     "avg": 23.8,
+     "max": 48
+    },
+    "pstates": "P0/P5/P8",
+    "tempC": 47
+   }
+  }
+ },
+ {
+  "clip": "pixie_1080p60.mp4",
+  "mode": "bilinear",
+  "wall": 15,
+  "videoTime": 15,
+  "stats": {
+   "state": "running",
+   "mode": "bilinear",
+   "source": [
+    1920,
+    1080
+   ],
+   "target": [
+    2560,
+    1440
+   ],
+   "scale": 1.333,
+   "rendered": 688,
+   "completed": 688,
+   "droppedBusy": 0,
+   "droppedBuild": 0,
+   "videoPresented": 847,
+   "missed": 158,
+   "fps": 45.87,
+   "inFlight": 0,
+   "rebuilds": 2,
+   "gpuErrors": 0,
+   "lastGpuError": null,
+   "cpuMs": {
+    "median": 0.4,
+    "p95": 0.6
+   },
+   "gpuMs": {
+    "median": 0.867,
+    "p95": 1.41,
+    "n": 240
+   },
+   "adapter": {
+    "vendor": "nvidia",
+    "architecture": "ampere",
+    "device": "0x24a0",
+    "description": "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
+    "backend": "vulkan"
+   },
+   "error": null
+  },
+  "cadence": {
+   "n": 686,
+   "meanMs": 21.828,
+   "p95Ms": 37.3,
+   "maxMs": 38.9,
+   "presentedFrames": 846,
+   "presentedFps": 56.4
+  },
+  "monitor": {
+   "seconds": 18.3,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 0.8,
+    "cage": 0.4,
+    "gpu-process": 25.6,
+    "other": 0,
+    "renderer": 18.7,
+    "utility": 0,
+    "zygote": 0
+   },
+   "gpu": {
+    "samples": 73,
+    "powerW": {
+     "avg": 21.9,
+     "max": 34.1
+    },
+    "clockMHz": {
+     "median": 210,
+     "max": 1410
+    },
+    "memClockMHz": 405,
+    "vramMiB": {
+     "max": 346
+    },
+    "utilPct": {
+     "avg": 21.7,
+     "max": 37
+    },
+    "pstates": "P0/P5/P8",
+    "tempC": 47
+   }
+  }
+ },
+ {
+  "clip": "pixie_1080p60.mp4",
+  "mode": "fsr",
+  "wall": 15,
+  "videoTime": 15,
+  "stats": {
+   "state": "running",
+   "mode": "fsr",
+   "source": [
+    1920,
+    1080
+   ],
+   "target": [
+    2560,
+    1440
+   ],
+   "scale": 1.333,
+   "rendered": 666,
+   "completed": 665,
+   "droppedBusy": 0,
+   "droppedBuild": 0,
+   "videoPresented": 841,
+   "missed": 174,
+   "fps": 44.4,
+   "inFlight": 1,
+   "rebuilds": 2,
+   "gpuErrors": 0,
+   "lastGpuError": null,
+   "cpuMs": {
+    "median": 0.4,
+    "p95": 0.6
+   },
+   "gpuMs": {
+    "median": 3.029,
+    "p95": 3.255,
+    "n": 240
+   },
+   "adapter": {
+    "vendor": "nvidia",
+    "architecture": "ampere",
+    "device": "0x24a0",
+    "description": "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
+    "backend": "vulkan"
+   },
+   "error": null
+  },
+  "cadence": {
+   "n": 664,
+   "meanMs": 22.575,
+   "p95Ms": 37.9,
+   "maxMs": 40,
+   "presentedFrames": 840,
+   "presentedFps": 56
+  },
+  "monitor": {
+   "seconds": 18.2,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 0.8,
+    "cage": 0.4,
+    "gpu-process": 26.3,
+    "other": 0,
+    "renderer": 18.9,
+    "utility": 0.1,
+    "zygote": 0
+   },
+   "gpu": {
+    "samples": 73,
+    "powerW": {
+     "avg": 23.7,
+     "max": 34.5
+    },
+    "clockMHz": {
+     "median": 300,
+     "max": 1410
+    },
+    "memClockMHz": 405,
+    "vramMiB": {
+     "max": 373
+    },
+    "utilPct": {
+     "avg": 25.3,
+     "max": 46
+    },
+    "pstates": "P0/P5/P8",
+    "tempC": 47
+   }
+  }
+ },
+ {
+  "clip": "pixie_720p30.mp4",
+  "mode": "plain-video",
+  "plain": {
+   "clip": "pixie_720p30.mp4",
+   "rvfcFps": 28.9
+  },
+  "monitor": {
+   "seconds": 15.1,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 0.8,
+    "cage": 0.4,
+    "gpu-process": 4.6,
+    "other": 0,
+    "renderer": 7.2,
+    "utility": 0.1,
+    "zygote": 0
+   },
+   "gpu": {
+    "samples": 60,
+    "powerW": {
+     "avg": 18.6,
+     "max": 19.2
+    },
+    "clockMHz": {
+     "median": 210,
+     "max": 330
+    },
+    "memClockMHz": 405,
+    "vramMiB": {
+     "max": 316
+    },
+    "utilPct": {
+     "avg": 5.1,
+     "max": 18
+    },
+    "pstates": "P8",
+    "tempC": 45
+   }
+  }
+ },
+ {
+  "clip": "pixie_1080p60.mp4",
+  "mode": "plain-video",
+  "plain": {
+   "clip": "pixie_1080p60.mp4",
+   "rvfcFps": 44.4
+  },
+  "monitor": {
+   "seconds": 15.1,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 1.3,
+    "cage": 0.5,
+    "gpu-process": 7.2,
+    "other": 0,
+    "renderer": 19.3,
+    "utility": 0,
+    "zygote": 0
+   },
+   "gpu": {
+    "samples": 61,
+    "powerW": {
+     "avg": 18.7,
+     "max": 18.8
+    },
+    "clockMHz": {
+     "median": 210,
+     "max": 210
+    },
+    "memClockMHz": 405,
+    "vramMiB": {
+     "max": 102
+    },
+    "utilPct": {
+     "avg": 15,
+     "max": 16
+    },
+    "pstates": "P8",
+    "tempC": 44
+   }
+  }
+ }
+]

@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>nvvsr iframe test</title>
+<!-- loaded inside an <iframe> by H.iframe(): tries the upscaler on its own video and reports to the parent -->
+<video id="v" muted playsinline style="width:640px;height:360px"></video><canvas id="c" style="display:none"></canvas>
+<script type="module">
+  import { VideoUpscaler } from '../src/upscaler.js';
+  const q = new URLSearchParams(location.search), v = document.getElementById('v'), r = { origin: location.origin, isSecureContext, hasGpu: !!navigator.gpu };
+  try {
+    v.src = q.get('clip'); await new Promise((ok, bad) => { v.onloadeddata = ok; v.onerror = () => bad(new Error('video error')); });
+    v.currentTime = 1; await new Promise(ok => { v.onseeked = ok; }); await new Promise(ok => setTimeout(ok, 200));
+    const up = await VideoUpscaler.create(v, document.getElementById('c'), { mode: 'fsr', width: 1280, height: 720, powerPreference: q.get('gpu') || 'high-performance' });
+    await up.renderOnce(); r.ok = true; r.adapter = up.adapterInfo.vendor; up.destroy();
+  } catch (e) { r.ok = false; r.error = { code: e.code, name: e.name, message: String(e.message).slice(0, 200) }; }
+  parent.postMessage(r, '*');
+</script>

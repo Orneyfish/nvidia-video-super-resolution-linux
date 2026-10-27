@@ -1,0 +1,349 @@
+{
+ "crossOrigin": [
+  {
+   "label": "same origin",
+   "result": "ok",
+   "nonBlack": true,
+   "detail": ""
+  },
+  {
+   "label": "cross origin, no CORS headers, no crossorigin attr",
+   "result": "cross-origin",
+   "detail": "video is cross-origin without CORS (tainted); serve it with Access-Control-Allow-Origin and crossorigin=\"anony"
+  },
+  {
+   "label": "cross origin, ACAO:*, no crossorigin attr",
+   "result": "cross-origin",
+   "detail": "video is cross-origin without CORS (tainted); serve it with Access-Control-Allow-Origin and crossorigin=\"anony"
+  },
+  {
+   "label": "cross origin, ACAO:*, crossorigin=anonymous",
+   "result": "ok",
+   "nonBlack": true,
+   "detail": ""
+  },
+  {
+   "label": "cross origin, no CORS headers, crossorigin=anonymous",
+   "result": "video-load-error",
+   "detail": "video error MEDIA_ELEMENT_ERROR: Format error"
+  }
+ ],
+ "colour": [
+  {
+   "clip": "bt709",
+   "mode": "bilinear",
+   "maxErr": 2,
+   "meanMaxErr": 0.56,
+   "worst": {
+    "expected": [
+     255,
+     0,
+     255
+    ],
+    "got": [
+     253,
+     0,
+     254
+    ],
+    "maxErr": 2
+   }
+  },
+  {
+   "clip": "bt709",
+   "mode": "fsr",
+   "maxErr": 2,
+   "meanMaxErr": 0.56,
+   "worst": {
+    "expected": [
+     255,
+     0,
+     255
+    ],
+    "got": [
+     253,
+     0,
+     254
+    ],
+    "maxErr": 2
+   }
+  },
+  {
+   "clip": "bt601",
+   "mode": "bilinear",
+   "maxErr": 70,
+   "meanMaxErr": 18.13,
+   "worst": {
+    "expected": [
+     0,
+     255,
+     255
+    ],
+    "got": [
+     70,
+     253,
+     255
+    ],
+    "maxErr": 70
+   }
+  },
+  {
+   "clip": "bt601",
+   "mode": "fsr",
+   "maxErr": 70,
+   "meanMaxErr": 18.13,
+   "worst": {
+    "expected": [
+     0,
+     255,
+     255
+    ],
+    "got": [
+     70,
+     253,
+     255
+    ],
+    "maxErr": 70
+   }
+  },
+  {
+   "clip": "bt709pc",
+   "mode": "bilinear",
+   "maxErr": 2,
+   "meanMaxErr": 1.31,
+   "worst": {
+    "expected": [
+     235,
+     235,
+     235
+    ],
+    "got": [
+     233,
+     236,
+     233
+    ],
+    "maxErr": 2
+   }
+  },
+  {
+   "clip": "bt709pc",
+   "mode": "fsr",
+   "maxErr": 2,
+   "meanMaxErr": 1.31,
+   "worst": {
+    "expected": [
+     235,
+     235,
+     235
+    ],
+    "got": [
+     233,
+     236,
+     233
+    ],
+    "maxErr": 2
+   }
+  },
+  {
+   "clip": "bt2020",
+   "mode": "bilinear",
+   "maxErr": 90,
+   "meanMaxErr": 12.38,
+   "worst": {
+    "expected": [
+     90,
+     140,
+     200
+    ],
+    "got": [
+     0,
+     144,
+     205
+    ],
+    "maxErr": 90
+   }
+  },
+  {
+   "clip": "bt2020",
+   "mode": "fsr",
+   "maxErr": 90,
+   "meanMaxErr": 12.38,
+   "worst": {
+    "expected": [
+     90,
+     140,
+     200
+    ],
+    "got": [
+     0,
+     144,
+     205
+    ],
+    "maxErr": 90
+   }
+  }
+ ],
+ "rotated": {
+  "videoSize": [
+   720,
+   1280
+  ],
+  "canvas": [
+   1440,
+   2560
+  ],
+  "corners": {
+   "tl": {
+    "webgpu": [
+     64,
+     64,
+     64
+    ],
+    "drawImage": [
+     64,
+     64,
+     64
+    ]
+   },
+   "tr": {
+    "webgpu": [
+     30,
+     160,
+     89
+    ],
+    "drawImage": [
+     30,
+     160,
+     89
+    ]
+   },
+   "bl": {
+    "webgpu": [
+     235,
+     235,
+     235
+    ],
+    "drawImage": [
+     235,
+     235,
+     235
+    ]
+   },
+   "br": {
+    "webgpu": [
+     120,
+     80,
+     60
+    ],
+    "drawImage": [
+     120,
+     80,
+     60
+    ]
+   }
+  }
+ },
+ "geometry": [
+  {
+   "label": "contain, same aspect box",
+   "source": "852x480",
+   "canvasBacking": "1278x720",
+   "psnrVideoVsCanvas": null
+  },
+  {
+   "label": "contain, 4:3 box (letterbox)",
+   "source": "852x480",
+   "canvasBacking": "960x541",
+   "psnrVideoVsCanvas": null
+  },
+  {
+   "label": "cover, square box",
+   "source": "852x480",
+   "canvasBacking": "1278x720",
+   "psnrVideoVsCanvas": null
+  },
+  {
+   "label": "fill, 4:3 box (stretch)",
+   "source": "852x480",
+   "canvasBacking": "960x720",
+   "psnrVideoVsCanvas": null
+  },
+  {
+   "label": "CSS rotate(10deg) scale(.8) on the container",
+   "source": "852x480",
+   "canvasBacking": "1278x720",
+   "psnrVideoVsCanvas": null
+  },
+  {
+   "label": "CSS scaleX(-1) on the container",
+   "source": "852x480",
+   "canvasBacking": "1278x720",
+   "psnrVideoVsCanvas": null
+  }
+ ],
+ "iframe": [
+  {
+   "label": "same-origin iframe",
+   "origin": "http://127.0.0.1:38795",
+   "isSecureContext": true,
+   "hasGpu": true,
+   "ok": true,
+   "adapter": "nvidia"
+  },
+  {
+   "label": "cross-origin iframe (other port), no allow=",
+   "origin": "http://127.0.0.1:45819",
+   "isSecureContext": true,
+   "hasGpu": true,
+   "ok": true,
+   "adapter": "nvidia"
+  },
+  {
+   "label": "iframe on an insecure origin (http://nvvsr.test)",
+   "origin": "http://nvvsr.test:38795",
+   "isSecureContext": false,
+   "hasGpu": false,
+   "ok": false,
+   "error": {
+    "code": "unsupported",
+    "name": "UpscalerError",
+    "message": "navigator.gpu is not available (isSecureContext=false)"
+   }
+  }
+ ],
+ "eme": {
+  "events": [
+   "loadedmetadata",
+   "waitingforkey"
+  ],
+  "ok": false,
+  "error": {
+   "name": "Error",
+   "message": "timeout waiting for loadeddata"
+  },
+  "state": {
+   "videoReady": 1,
+   "videoError": null,
+   "mediaSource": "ended"
+  }
+ },
+ "pip": {
+  "ok": true,
+  "size": [
+   284,
+   160
+  ],
+  "upscalerKeepsRunning": true
+ },
+ "fullscreen": [
+  {
+   "fullscreenElement": "<video> element",
+   "result": "VIDEO#v",
+   "shows": "canvas (upscaled)"
+  },
+  {
+   "fullscreenElement": "container <div> with video + canvas",
+   "result": "DIV#box",
+   "shows": "canvas (upscaled)"
+  }
+ ]
+}

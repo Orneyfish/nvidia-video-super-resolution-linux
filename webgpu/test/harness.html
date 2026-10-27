@@ -1,0 +1,11 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>nvvsr webgpu harness</title>
+<style>
+  html, body { margin: 0; background: #000; overflow: hidden; }
+  #box { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; }
+  #v, #c { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; object-fit: contain; }
+</style>
+<div id="box"><video id="v" muted playsinline preload="auto"></video><canvas id="c"></canvas></div>
+<script type="module" src="harness.js"></script>
+<script type="module" src="suites.js"></script>

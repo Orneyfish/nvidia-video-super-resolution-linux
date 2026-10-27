@@ -1,0 +1,415 @@
+{
+ "res": [
+  {
+   "clip": "pixie_480p30.mp4",
+   "src": [
+    852,
+    480
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "bilinear",
+   "steps": "bilinear",
+   "median": 0.52,
+   "p95": 0.529,
+   "min": 0.51,
+   "max": 0.545,
+   "n": 60
+  },
+  {
+   "clip": "pixie_480p30.mp4",
+   "src": [
+    852,
+    480
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "fsr_easu",
+   "steps": "blit > fsr/easu",
+   "median": 1.912,
+   "p95": 1.922,
+   "min": 1.902,
+   "max": 1.938,
+   "n": 60
+  },
+  {
+   "clip": "pixie_480p30.mp4",
+   "src": [
+    852,
+    480
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "fsr",
+   "steps": "blit > fsr/easu > fsr/rcas",
+   "median": 2.498,
+   "p95": 2.531,
+   "min": 2.463,
+   "max": 2.575,
+   "n": 60
+  },
+  {
+   "clip": "pixie_480p30.mp4",
+   "src": [
+    852,
+    480
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "cnn_S",
+   "steps": "blit > cnnS/conv2d_tf > cnnS/conv2d_1_tf > cnnS/conv2d_2_tf > cnnS/conv2d_last_tf > cnnS/d2s > cnn/easu",
+   "median": 2.853,
+   "p95": 2.952,
+   "min": 2.828,
+   "max": 3.016,
+   "n": 60
+  },
+  {
+   "clip": "pixie_480p30.mp4",
+   "src": [
+    852,
+    480
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "cnn_M",
+   "steps": "blit > cnnM/conv2d_tf > cnnM/conv2d_1_tf > cnnM/conv2d_2_tf > cnnM/conv2d_3_tf > cnnM/conv2d_4_tf > cnnM/conv2d_5_tf > cnnM/conv2d_6_tf > cnnM/conv2d_last_tf > cnnM/d2s > cnn/easu",
+   "median": 3.835,
+   "p95": 3.911,
+   "min": 3.782,
+   "max": 3.988,
+   "n": 60
+  },
+  {
+   "clip": "pixie_480p30.mp4",
+   "src": [
+    852,
+    480
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "cnn_S_rS",
+   "steps": "blit > restoreS/conv2d_tf > restoreS/conv2d_1_tf > restoreS/conv2d_2_tf > restoreS/MAIN > cnnS/conv2d_tf > cnnS/conv2d_1_tf > cnnS/conv2d_2_tf > cnnS/conv2d_last_tf > cnnS/d2s > cnn/easu",
+   "median": 3.722,
+   "p95": 3.809,
+   "min": 3.665,
+   "max": 3.85,
+   "n": 60
+  },
+  {
+   "clip": "pixie_480p30.mp4",
+   "src": [
+    852,
+    480
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "cnn_M_rM",
+   "steps": "blit > restoreM/conv2d_tf > restoreM/conv2d_1_tf > restoreM/conv2d_2_tf > restoreM/conv2d_3_tf > restoreM/conv2d_4_tf > restoreM/conv2d_5_tf > restoreM/conv2d_6_tf > restoreM/MAIN > cnnM/conv2d_tf > cnnM/conv2d_1_tf > cnnM/conv2d_2_tf > cnnM/conv2d_3_tf > cnnM/conv2d_4_tf > cnnM/conv2d_5_tf > cnnM/conv2d_6_tf > cnnM/conv2d_last_tf > cnnM/d2s > cnn/easu",
+   "median": 5.611,
+   "p95": 5.68,
+   "min": 5.513,
+   "max": 5.699,
+   "n": 60
+  },
+  {
+   "clip": "pixie_720p30.mp4",
+   "src": [
+    1280,
+    720
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "bilinear",
+   "steps": "bilinear",
+   "median": 0.206,
+   "p95": 0.211,
+   "min": 0.203,
+   "max": 0.218,
+   "n": 60
+  },
+  {
+   "clip": "pixie_720p30.mp4",
+   "src": [
+    1280,
+    720
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "fsr_easu",
+   "steps": "blit > fsr/easu",
+   "median": 1.948,
+   "p95": 1.964,
+   "min": 1.936,
+   "max": 1.965,
+   "n": 60
+  },
+  {
+   "clip": "pixie_720p30.mp4",
+   "src": [
+    1280,
+    720
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "fsr",
+   "steps": "blit > fsr/easu > fsr/rcas",
+   "median": 2.533,
+   "p95": 2.601,
+   "min": 2.513,
+   "max": 2.634,
+   "n": 60
+  },
+  {
+   "clip": "pixie_720p30.mp4",
+   "src": [
+    1280,
+    720
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "cnn_S",
+   "steps": "blit > cnnS/conv2d_tf > cnnS/conv2d_1_tf > cnnS/conv2d_2_tf > cnnS/conv2d_last_tf > cnnS/d2s",
+   "median": 2,
+   "p95": 2.045,
+   "min": 1.977,
+   "max": 2.19,
+   "n": 60
+  },
+  {
+   "clip": "pixie_720p30.mp4",
+   "src": [
+    1280,
+    720
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "cnn_M",
+   "steps": "blit > cnnM/conv2d_tf > cnnM/conv2d_1_tf > cnnM/conv2d_2_tf > cnnM/conv2d_3_tf > cnnM/conv2d_4_tf > cnnM/conv2d_5_tf > cnnM/conv2d_6_tf > cnnM/conv2d_last_tf > cnnM/d2s",
+   "median": 4.31,
+   "p95": 4.395,
+   "min": 4.213,
+   "max": 4.418,
+   "n": 60
+  },
+  {
+   "clip": "pixie_720p30.mp4",
+   "src": [
+    1280,
+    720
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "cnn_S_rS",
+   "steps": "blit > restoreS/conv2d_tf > restoreS/conv2d_1_tf > restoreS/conv2d_2_tf > restoreS/MAIN > cnnS/conv2d_tf > cnnS/conv2d_1_tf > cnnS/conv2d_2_tf > cnnS/conv2d_last_tf > cnnS/d2s",
+   "median": 3.725,
+   "p95": 3.844,
+   "min": 3.687,
+   "max": 3.875,
+   "n": 60
+  },
+  {
+   "clip": "pixie_720p30.mp4",
+   "src": [
+    1280,
+    720
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "cnn_M_rM",
+   "steps": "blit > restoreM/conv2d_tf > restoreM/conv2d_1_tf > restoreM/conv2d_2_tf > restoreM/conv2d_3_tf > restoreM/conv2d_4_tf > restoreM/conv2d_5_tf > restoreM/conv2d_6_tf > restoreM/MAIN > cnnM/conv2d_tf > cnnM/conv2d_1_tf > cnnM/conv2d_2_tf > cnnM/conv2d_3_tf > cnnM/conv2d_4_tf > cnnM/conv2d_5_tf > cnnM/conv2d_6_tf > cnnM/conv2d_last_tf > cnnM/d2s",
+   "median": 8.192,
+   "p95": 8.298,
+   "min": 8.096,
+   "max": 8.401,
+   "n": 60
+  },
+  {
+   "clip": "pixie_1080p30.mp4",
+   "src": [
+    1920,
+    1080
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "bilinear",
+   "steps": "bilinear",
+   "median": 0.202,
+   "p95": 0.22,
+   "min": 0.201,
+   "max": 0.229,
+   "n": 60
+  },
+  {
+   "clip": "pixie_1080p30.mp4",
+   "src": [
+    1920,
+    1080
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "fsr_easu",
+   "steps": "blit > fsr/easu",
+   "median": 2.024,
+   "p95": 2.046,
+   "min": 2.008,
+   "max": 2.052,
+   "n": 60
+  },
+  {
+   "clip": "pixie_1080p30.mp4",
+   "src": [
+    1920,
+    1080
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "fsr",
+   "steps": "blit > fsr/easu > fsr/rcas",
+   "median": 2.607,
+   "p95": 2.655,
+   "min": 2.588,
+   "max": 2.716,
+   "n": 60
+  },
+  {
+   "clip": "pixie_1080p30.mp4",
+   "src": [
+    1920,
+    1080
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "cnn_S",
+   "steps": "blit > cnnS/conv2d_tf > cnnS/conv2d_1_tf > cnnS/conv2d_2_tf > cnnS/conv2d_last_tf > cnnS/d2s > cnn/resample",
+   "median": 5.677,
+   "p95": 5.748,
+   "min": 5.627,
+   "max": 5.869,
+   "n": 60
+  },
+  {
+   "clip": "pixie_1080p30.mp4",
+   "src": [
+    1920,
+    1080
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "cnn_M",
+   "steps": "blit > cnnM/conv2d_tf > cnnM/conv2d_1_tf > cnnM/conv2d_2_tf > cnnM/conv2d_3_tf > cnnM/conv2d_4_tf > cnnM/conv2d_5_tf > cnnM/conv2d_6_tf > cnnM/conv2d_last_tf > cnnM/d2s > cnn/resample",
+   "median": 11.005,
+   "p95": 11.099,
+   "min": 10.919,
+   "max": 11.114,
+   "n": 60
+  },
+  {
+   "clip": "pixie_1080p30.mp4",
+   "src": [
+    1920,
+    1080
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "cnn_S_rS",
+   "steps": "blit > restoreS/conv2d_tf > restoreS/conv2d_1_tf > restoreS/conv2d_2_tf > restoreS/MAIN > cnnS/conv2d_tf > cnnS/conv2d_1_tf > cnnS/conv2d_2_tf > cnnS/conv2d_last_tf > cnnS/d2s > cnn/resample",
+   "median": 9.734,
+   "p95": 10.075,
+   "min": 9.572,
+   "max": 10.393,
+   "n": 60
+  },
+  {
+   "clip": "pixie_1080p30.mp4",
+   "src": [
+    1920,
+    1080
+   ],
+   "dst": [
+    2560,
+    1440
+   ],
+   "mode": "cnn_M_rM",
+   "steps": "blit > restoreM/conv2d_tf > restoreM/conv2d_1_tf > restoreM/conv2d_2_tf > restoreM/conv2d_3_tf > restoreM/conv2d_4_tf > restoreM/conv2d_5_tf > restoreM/conv2d_6_tf > restoreM/MAIN > cnnM/conv2d_tf > cnnM/conv2d_1_tf > cnnM/conv2d_2_tf > cnnM/conv2d_3_tf > cnnM/conv2d_4_tf > cnnM/conv2d_5_tf > cnnM/conv2d_6_tf > cnnM/conv2d_last_tf > cnnM/d2s > cnn/resample",
+   "median": 20.502,
+   "p95": 20.777,
+   "min": 20.322,
+   "max": 20.875,
+   "n": 60
+  }
+ ],
+ "monitor": {
+  "seconds": 38.8,
+  "chromeCpuPercentOfOneCore": {
+   "browser": 2.3,
+   "cage": 0,
+   "gpu-process": 10.4,
+   "other": 0.1,
+   "renderer": 2.1,
+   "utility": 0.9,
+   "zygote": 0.1
+  },
+  "gpu": {
+   "samples": 155,
+   "powerW": {
+    "avg": 18.5,
+    "max": 18.6
+   },
+   "clockMHz": {
+    "median": 210,
+    "max": 210
+   },
+   "memClockMHz": 405,
+   "vramMiB": {
+    "max": 15
+   },
+   "utilPct": {
+    "avg": 0,
+    "max": 0
+   },
+   "pstates": "P8",
+   "tempC": 45
+  }
+ }
+}

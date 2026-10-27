@@ -9,3 +9,6 @@ models/
 *.plan
 third_party/nvidia-vfx/
 .claude/worktrees/
+
+# the Anime4K weights of the in-page upscaler are MIT-licensed JS, not NVIDIA models
+!webgpu/src/models/

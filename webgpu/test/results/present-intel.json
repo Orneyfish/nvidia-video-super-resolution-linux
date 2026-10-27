@@ -1,0 +1,170 @@
+[
+ {
+  "width": 640,
+  "height": 360,
+  "frames": 463,
+  "fps": 57.9,
+  "meanMs": 17.307,
+  "p95Ms": 19.1,
+  "maxMs": 20.4,
+  "monitor": {
+   "seconds": 8,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 1.1,
+    "cage": 0.5,
+    "gpu-process": 6.2,
+    "other": 0,
+    "renderer": 5.1,
+    "utility": 0,
+    "zygote": 0
+   },
+   "gpu": {
+    "samples": 32,
+    "powerW": {
+     "avg": 18.3,
+     "max": 18.4
+    },
+    "clockMHz": {
+     "median": 210,
+     "max": 210
+    },
+    "memClockMHz": 405,
+    "vramMiB": {
+     "max": 15
+    },
+    "utilPct": {
+     "avg": 0,
+     "max": 0
+    },
+    "pstates": "P8",
+    "tempC": 42
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "height": 720,
+  "frames": 463,
+  "fps": 57.9,
+  "meanMs": 17.318,
+  "p95Ms": 19.1,
+  "maxMs": 20.3,
+  "monitor": {
+   "seconds": 8,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 1.1,
+    "cage": 0.6,
+    "gpu-process": 6.4,
+    "other": 0,
+    "renderer": 5,
+    "utility": 0.1,
+    "zygote": 0
+   },
+   "gpu": {
+    "samples": 32,
+    "powerW": {
+     "avg": 18.3,
+     "max": 18.4
+    },
+    "clockMHz": {
+     "median": 210,
+     "max": 210
+    },
+    "memClockMHz": 405,
+    "vramMiB": {
+     "max": 15
+    },
+    "utilPct": {
+     "avg": 0,
+     "max": 0
+    },
+    "pstates": "P8",
+    "tempC": 42
+   }
+  }
+ },
+ {
+  "width": 2560,
+  "height": 1440,
+  "frames": 463,
+  "fps": 57.9,
+  "meanMs": 17.325,
+  "p95Ms": 19.1,
+  "maxMs": 21.9,
+  "monitor": {
+   "seconds": 8,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 1.1,
+    "cage": 0.7,
+    "gpu-process": 6.2,
+    "other": 0,
+    "renderer": 5.4,
+    "utility": 0,
+    "zygote": 0
+   },
+   "gpu": {
+    "samples": 32,
+    "powerW": {
+     "avg": 18.3,
+     "max": 18.3
+    },
+    "clockMHz": {
+     "median": 210,
+     "max": 210
+    },
+    "memClockMHz": 405,
+    "vramMiB": {
+     "max": 15
+    },
+    "utilPct": {
+     "avg": 0,
+     "max": 0
+    },
+    "pstates": "P8",
+    "tempC": 42
+   }
+  }
+ },
+ {
+  "width": 2560,
+  "height": 1440,
+  "frames": 463,
+  "fps": 57.9,
+  "meanMs": 17.316,
+  "p95Ms": 19.2,
+  "maxMs": 21.5,
+  "monitor": {
+   "seconds": 8,
+   "chromeCpuPercentOfOneCore": {
+    "browser": 1,
+    "cage": 0.5,
+    "gpu-process": 6.4,
+    "other": 0,
+    "renderer": 5,
+    "utility": 0,
+    "zygote": 0
+   },
+   "gpu": {
+    "samples": 32,
+    "powerW": {
+     "avg": 18.3,
+     "max": 18.3
+    },
+    "clockMHz": {
+     "median": 210,
+     "max": 210
+    },
+    "memClockMHz": 405,
+    "vramMiB": {
+     "max": 15
+    },
+    "utilPct": {
+     "avg": 0,
+     "max": 0
+    },
+    "pstates": "P8",
+    "tempC": 42
+   }
+  }
+ }
+]
