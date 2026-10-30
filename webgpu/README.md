@@ -148,6 +148,14 @@ more. Viewed side by side the network cleans edges a little but cannot restore d
 unsharp mask after the upscale makes edges look crisper (more halos, slightly lower SSIM). Larger gains are expected for
 lower-resolution sources (360p/480p) than for 720p/1080p on a 1440p screen.
 
+**Sharpening and Ultra (added 2026-10-30 after that feedback):** extension 0.4.0 asks the daemon for NVIDIA ULTRA up to 800
+lines of source height (HIGH above: ULTRA costs ~40 % more at 1080p) and a sharpening level (default 3 of 7). The daemon
+applies it after the upscale as an unsharp mask on the luma plane (3x3 box blur, amount = level x 0.15, 4 threads,
+1.05-1.62 ms for 1080p/1440p frames, request flags bits 2..4). `Alt+]` / `Alt+[` change the level (0 = off; remembered in
+`chrome.storage.local`), `Alt+S` switches everything off for an A/B. Playwright check on real YouTube 720p (`test/pw_compare.js`,
+device scale 2): daemon errors 0, ~37 fps out in the software-rendered test browser, and the upscaled canvas shows clearly
+more defined edges than Chrome's own scaling (PSNR between the two 33.6 dB, against 37.5 dB without sharpening).
+
 **Why the socket lives in an extension iframe (found 2026-10-30):** on real YouTube the extension showed "SR failed": a public
 page origin (https://www.youtube.com) cannot open a WebSocket to `127.0.0.1`, not even from its content script
 ("daemon not reachable within 1.5 s"; the same code connected from a page on `http://127.0.0.1`). `content.js` therefore injects
