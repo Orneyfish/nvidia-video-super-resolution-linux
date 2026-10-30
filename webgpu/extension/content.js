@@ -4,7 +4,18 @@
 // Alt+S switches it off/on (A/B). Debug: open a page with #nvvsr-debug (or #nvvsr-debug=PORT to also post to a local test server)
 // to log the stats every 2 s.
 (() => {
-  const DAEMON = 'ws://127.0.0.1:41777';  // start it with --origin <this page's origin>: a content script's WebSocket carries the page origin
+  // A public page origin (youtube.com) may not reach 127.0.0.1, not even from its content script ("daemon not reachable"). So the socket
+  // lives in an extension-origin iframe (bridge.js) and the frames cross a MessageChannel as ArrayBuffers. Same API as a WebSocket.
+  const openBridge = () => {
+    const frame = document.createElement('iframe'), mc = new MessageChannel(), url = chrome.runtime.getURL('bridge.html');
+    const s = { onopen: null, onclose: null, onmessage: null, send: buf => mc.port1.postMessage(buf), close: () => { mc.port1.postMessage('close'); frame.remove(); } };
+    mc.port1.onmessage = e => { const m = e.data; if (m.t === 'open') s.onopen?.(); else if (m.t === 'close') s.onclose?.(); else s.onmessage?.({ data: m.d }); };
+    frame.style.cssText = 'display:none';
+    frame.onload = () => frame.contentWindow.postMessage('connect', new URL(url).origin, [mc.port2]);
+    frame.src = url;
+    document.documentElement.append(frame);
+    return s;
+  };
   const port = /[#&]nvvsr-debug=(\d+)/.exec(location.hash)?.[1], debug = /[#&]nvvsr-debug/.test(location.hash);
   const log = (...a) => { console.log('[nvvsr]', ...a); report({ log: a.join(' ') }); };
   const report = o => { if (port) navigator.sendBeacon(`http://127.0.0.1:${port}/post?name=ext-${location.hostname}-${Date.now()}.json`, JSON.stringify({ url: location.href, ...o })); };
@@ -57,8 +68,7 @@
         width: video.offsetWidth + 'px', height: video.offsetHeight + 'px', objectFit: getComputedStyle(video).objectFit, pointerEvents: 'none' });
     };
     place(); video.after(canvas);
-    const ws = new WebSocket(DAEMON);
-    ws.binaryType = 'arraybuffer';
+    const ws = openBridge();
     const me = active = { video, canvas, ws, ro: new ResizeObserver(place), timer: 0, vfc: 0 };
     me.ro.observe(video);
     const fail = why => { if (active !== me) return; log('failed:', why); stop(); badge('SR failed'); };
@@ -146,5 +156,6 @@
   };
   document.addEventListener('fullscreenchange', onFullscreen);
   addEventListener('keydown', e => { if (e.altKey && e.code === 'KeyS') { off = !off; stop(); if (!off) onFullscreen(); badge(off ? 'SR off' : 'SR'); } });
+  if (/[#&]nvvsr-force/.test(location.hash)) setTimeout(() => { const v = biggestVideo(document.body); if (v) start(v, gen); }, 8000);  // debug: start without fullscreen
   report({ loaded: true });
 })();

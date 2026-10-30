@@ -136,7 +136,17 @@ GPU; the decoder engine stays at 0 % (CPU decode). The daemon starts with a syst
 `daemon/nvvsr-webd.service` (not installed anywhere).
 
 Debug options in the page URL hash: `#nvvsr-debug[=PORT]` (log the stats; with PORT also post them to `test/server.cpp`) and
-`#nvvsr-box=WxH` (pretend the video box is WxH device pixels).
+`#nvvsr-box=WxH` (pretend the video box is WxH device pixels) and `#nvvsr-force` (start 8 s after load without fullscreen).
+
+**Why the socket lives in an extension iframe (found 2026-10-30):** on real YouTube the extension showed "SR failed": a public
+page origin (https://www.youtube.com) cannot open a WebSocket to `127.0.0.1`, not even from its content script
+("daemon not reachable within 1.5 s"; the same code connected from a page on `http://127.0.0.1`). `content.js` therefore injects
+`bridge.html` (an extension-origin iframe) and `bridge.js` opens the socket to `ws://127.0.0.1:41777` from there; the frames
+cross a `MessageChannel` as ArrayBuffers. The daemon now sees `Origin: chrome-extension://...`, which it accepts by default (the
+`--origin https://www.youtube.com` of the service becomes unnecessary). The manifest enables the extension only on
+`https://*.youtube.com/*` and `http://127.0.0.1/*` (the test pages); `web_accessible_resources` uses the same list, so other pages cannot
+embed the bridge and borrow the daemon. To enable another site add it to both lists in `manifest.json` and reload the extension.
+Real YouTube, headless (`#nvvsr-force`): 480p -> 2560x1438, 30 fps in and out, RTT p50 ~19 ms, daemon DROP/ERR 0.
 
 ## Results (Chrome 156, headless `cage`, 2560x1440 canvas, RTX 3070 Ti Laptop + Intel Iris Xe)
 
