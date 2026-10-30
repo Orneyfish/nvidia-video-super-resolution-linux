@@ -12,6 +12,7 @@
 # makes --build-mpv a no-op; NVVSR_WHEEL_URL / NVVSR_WHEEL_SHA256 replace the pinned wheel URL and hash;
 # NVVSR_INSTALL_PYLIBDIR replaces /usr/lib as the place where the vapoursynth.toml fallback looks for libpython;
 # NVVSR_PANEL_BIN is the nvcontrol binary --with-panel installs instead of building it.
+# NVVSR_WEBD_BIN is the nvvsr_webd binary --with-chrome installs instead of building it.
 set -euo pipefail
 
 SELF=$(readlink -f -- "${BASH_SOURCE[0]}")
@@ -32,7 +33,7 @@ KS=$'\037'                    # separator inside record keys ("type<KS>path")
 TS=$(date -u +%Y%m%dT%H%M%S)  # one timestamp per run: the suffix of every backup it makes
 
 CMD="" OPT_PREFIX="" OPT_HOME="" OPT_MPV_BIN=""
-DRY_RUN=0 YES=0 NO_VLC=0 NO_MPV=0 SKIP_WHEEL=0 BUILD_MPV=0 WITH_PANEL=0 PURGE_MPV=0
+DRY_RUN=0 YES=0 NO_VLC=0 NO_MPV=0 SKIP_WHEEL=0 BUILD_MPV=0 WITH_PANEL=0 WITH_CHROME=0 PURGE_MPV=0
 SKIP_GPU=${NVVSR_INSTALL_SKIP_GPU_CHECK:-0}
 
 usage() {
@@ -57,6 +58,8 @@ Options
   --mpv-bin PATH         private mpv (default: ~/.local/opt/mpv-vsr/bin/mpv)
   --build-mpv            build the private mpv with install/build-mpv-vsr.sh when it is missing or lacks vapoursynth
   --with-panel           also build nvcontrol (panel/, C++), install it under <prefix>/bin and run its launcher
+  --with-chrome          also build nvvsr_webd (webgpu/daemon/, the Chrome upscaling daemon), install it under <prefix>/bin and
+                         enable its systemd user service nvvsr-webd.service
   --purge-mpv            uninstall: also delete the private mpv tree
   -h, --help             this text
 
@@ -91,6 +94,7 @@ parse_args() {
       --skip-wheel) SKIP_WHEEL=1 ;;
       --build-mpv) BUILD_MPV=1 ;;
       --with-panel) WITH_PANEL=1 ;;
+      --with-chrome) WITH_CHROME=1 ;;
       --purge-mpv) PURGE_MPV=1 ;;
       -h|--help) usage; exit 0 ;;
       *) err "unknown argument: $1"; usage >&2; exit 2 ;;
@@ -704,6 +708,42 @@ step_panel() {
   fi
 }
 
+# nvvsr_webd (webgpu/daemon/, the Chrome upscaling daemon) goes to <prefix>/bin, its systemd user unit to the config home.
+# NVVSR_WEBD_BIN names an existing executable to install instead of building (tests).
+WEBD_BUILD=$REPO/build/webd
+WEBD_UNIT_NAME=nvvsr-webd.service
+step_webd() {
+  local src target=$PREFIX/bin/nvvsr_webd unit=$CONFIG_HOME/systemd/user/nvvsr-webd.service log=$STATE/webd-build.log
+  local enabled=true
+  if [ -n "${NVVSR_WEBD_BIN:-}" ] && [ -x "$NVVSR_WEBD_BIN" ]; then
+    src=$NVVSR_WEBD_BIN
+  else
+    src=$WEBD_BUILD/nvvsr_webd
+    act build "webd ($WEBD_BUILD)"
+    if [ "$DRY" = 0 ] && ! { cmake -S "$REPO/webgpu/daemon" -B "$WEBD_BUILD" -DCMAKE_BUILD_TYPE=Release -DNVVSR_CORE_BUILD_DIR="$BUILD_DIR/core" &&
+                              cmake --build "$WEBD_BUILD" -j "$JOBS"; } >"$log" 2>&1; then
+      tail -n 25 "$log" >&2
+      step_failed webd "build failed (last lines above)"; return 1
+    fi
+  fi
+  install_file "$src" "$target" 755 webd || { step_failed webd "cannot install $target"; return 1; }
+  sed "s|%h/.local/share/nvvsr/bin/nvvsr_webd|$target|" "$REPO/webgpu/daemon/nvvsr-webd.service" >"$STATE/gen-webd-unit"
+  install_file "$STATE/gen-webd-unit" "$unit" 644 webd || { step_failed webd "cannot install $unit"; return 1; }
+  set_path webd "$target"
+  set_path webd_unit "$unit"
+  act systemctl "--user daemon-reload"
+  act systemctl "--user enable --now $WEBD_UNIT_NAME"
+  if [ "$DRY" = 0 ]; then
+    if ! { have systemctl && systemctl --user daemon-reload && systemctl --user enable --now "$WEBD_UNIT_NAME"; } >/dev/null 2>&1; then
+      enabled=false
+      warn "webd: the service was not enabled (no systemd user manager?). Run these two commands:"
+      say "  systemctl --user daemon-reload"
+      say "  systemctl --user enable --now $WEBD_UNIT_NAME"
+    fi
+    set_comp webd installed "nvvsr_webd $target; unit $unit; service_enabled=$enabled"
+  fi
+}
+
 init_meta() {
   META[version]=$(core_version)
   META[git_commit]=$(GIT_OPTIONAL_LOCKS=0 git -C "$REPO" rev-parse HEAD 2>/dev/null || true)
@@ -728,6 +768,7 @@ run_install_steps() {
   if [ "$WANT_MPV" = 1 ]; then if [ "$vs_ok" = 1 ]; then step_mpv || true; fi; else skip_comp mpv "--no-mpv"; fi
   if [ "$WANT_VLC" = 1 ]; then if [ "$vlc_ok" = 1 ]; then step_vlc || true; fi; else skip_comp vlc "--no-vlc"; fi
   if [ "$WITH_PANEL" = 1 ]; then step_panel || true; else skip_comp panel "not requested"; fi
+  if [ "$WITH_CHROME" = 1 ]; then step_webd || true; else skip_comp webd "not requested"; fi
   save_manifest
 }
 
@@ -897,6 +938,14 @@ run_uninstall() {
   if [ -n "${CSTAT[panel]:-}" ] && [ "${CSTAT[panel]}" != skipped ]; then   # the launcher is not in install.json: it removes itself
     act launch "$PANEL_LAUNCHER --uninstall --home $HOME_DIR"
     if [ "$DRY" = 0 ]; then bash "$PANEL_LAUNCHER" --uninstall --home "$HOME_DIR" || warn "panel launcher could not be removed"; fi
+  fi
+  if [ -n "${CSTAT[webd]:-}" ] && [ "${CSTAT[webd]}" != skipped ]; then   # the unit is removed with the manifest; stop it first
+    act systemctl "--user disable --now $WEBD_UNIT_NAME"
+    act systemctl "--user daemon-reload"
+    if [ "$DRY" = 0 ] && have systemctl; then
+      systemctl --user disable --now "$WEBD_UNIT_NAME" >/dev/null 2>&1 || true
+      systemctl --user daemon-reload >/dev/null 2>&1 || true
+    fi
   fi
   for ((i = ${#RKEYS[@]} - 1; i >= 0; i--)); do
     k=${RKEYS[$i]}

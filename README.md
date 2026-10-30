@@ -50,7 +50,7 @@ install/install.sh uninstall                  # removes exactly what install.jso
 ```
 
 Options: `--prefix DIR`, `--home DIR`, `--no-mpv`, `--no-vlc`, `--skip-wheel`, `--mpv-bin PATH`, `--build-mpv`,
-`--with-panel`, `--purge-mpv` (uninstall). Without `--yes`
+`--with-panel`, `--with-chrome`, `--purge-mpv` (uninstall). `--with-chrome` installs the Chrome upscaling daemon as a systemd user service; see webgpu/README.md. Without `--yes`
 and without a terminal the installer refuses. It never uses sudo or pacman, writes nothing outside your home, backs up
 every existing file it changes as `<file>.bak-nvvsr-<time>`, and a second run changes nothing. What goes where, and the
 `install.json` schema: [docs/install-layout.md](docs/install-layout.md).
