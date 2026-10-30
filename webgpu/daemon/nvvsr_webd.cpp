@@ -4,7 +4,8 @@
 // Protocol (RFC 6455, binary messages, little endian). Client -> server, 16-byte header + planes:
 //   "NVSR" u16 in_w u16 in_h u16 out_w u16 out_h u8 quality(0 = auto, else nvvsr_quality: 1-4, 21, 23) u8 flags u16 seq
 //   flags: bit0 = full range, bit1 = input is NV12 (Y, then interleaved UV pairs; in_w*in_h*3/2 bytes) instead of I420 (Y, U, V);
-//   any other bit -> ERR. The reply is always I420.
+//   bits 2..4 = sharpen level 0..7 (unsharp mask on the OUTPUT luma after the upscale, strength level*0.15, see sharpen.h;
+//   not part of the context); bits 5..7 -> ERR. The reply is always I420.
 // Server -> client: "NVSO" u16 out_w u16 out_h u16 seq u16 reserved f32 ms, then the upscaled I420 planes. Text replies:
 //   "ERR <reason>" (bad frame or core error; the connection stays open), "DROP <seq>" (a newer frame replaced this one).
 //
@@ -37,6 +38,7 @@
 #include <vector>
 
 #include "nvvsr.h"
+#include "sharpen.h"
 
 static const size_t MAX_MSG = 24u << 20;  // bigger messages are drained and answered with ERR
 static const uint64_t HARD_FRAME = 1u << 30;  // a single frame claiming more closes the connection (1009)
@@ -139,7 +141,7 @@ static const char *parse(const std::vector<uint8_t> &m, Job *j) {
   if (j->ow < j->iw || j->oh < j->ih || j->ow > 4 * j->iw || j->oh > 4 * j->ih) return "bad scale";
   const int q = j->quality;
   if (q > 4 && q != 21 && q != 23) return "bad quality";
-  if (j->flags & ~3) return "bad flags";
+  if (j->flags & ~0x1F) return "bad flags";
   if (m.size() != 16 + (size_t)j->iw * j->ih * 3 / 2) return "bad length";
   return nullptr;
 }
@@ -155,6 +157,7 @@ static void submit(Conn &c, std::vector<uint8_t> msg) {
 }
 
 static void work(Conn &c) {
+  std::vector<uint8_t> sharp_tmp;
   nvvsr_ctx *ctx = nullptr;  // one context for the current geometry/quality/range; recreated on change (the core recycles effects)
   std::array<int, 6> key{};
   for (;;) {
@@ -166,7 +169,7 @@ static void work(Conn &c) {
     const bool nv12 = j.flags & 2;
     {
       std::lock_guard<std::mutex> g(gpu);
-      const std::array<int, 6> k{j.iw, j.ih, j.ow, j.oh, j.quality, j.flags};
+      const std::array<int, 6> k{j.iw, j.ih, j.ow, j.oh, j.quality, j.flags & 3};  // range + NV12; the sharpen level is post-processing only
       if (!ctx || k != key) {
         nvvsr_destroy(ctx); ctx = nullptr;
         nvvsr_config cfg; nvvsr_config_init(&cfg);
@@ -191,6 +194,8 @@ static void work(Conn &c) {
       }
     }
     if (!err.empty()) { c.text("ERR " + err); continue; }
+    try { sharpen_luma(out.data() + 16, j.ow, j.oh, (j.flags >> 2) & 7, j.flags & 1, sharp_tmp); }  // CPU work, outside the GPU lock
+    catch (const std::exception &) {}  // out of memory: send the unsharpened frame
     memcpy(out.data(), "NVSO", 4);
     const uint16_t w = j.ow, h = j.oh, s = j.seq;  // little endian host assumed (x86/arm64 Linux)
     memcpy(&out[4], &w, 2); memcpy(&out[6], &h, 2); memcpy(&out[8], &s, 2); memcpy(&out[12], &ms, 4);

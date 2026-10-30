@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -17,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "../sharpen.h"
 #include "nvvsr.h"
 
 using Bytes = std::vector<uint8_t>;
@@ -129,6 +131,17 @@ static Bytes reference(const Bytes &in, int q, bool full, bool nv12 = false) {
   nvvsr_destroy(ctx);
   return out;
 }
+// Scalar reference of sharpen.h, written independently: float-free but with explicit floor division and a plain 3x3 loop.
+static void sharpen_ref(uint8_t *y, int w, int h, int level, bool full) {
+  const Bytes s(y, y + (size_t)w * h);
+  for (int r = 1; r < h - 1; r++) for (int c = 1; c < w - 1; c++) {
+    int sum = 0;
+    for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) sum += s[(size_t)(r + dy) * w + c + dx];
+    const int num = level * (9 * s[(size_t)r * w + c] - sum) + 30;
+    const int delta = num >= 0 ? num / 60 : -((-num + 59) / 60);  // floor(num / 60)
+    y[(size_t)r * w + c] = std::min(std::max(s[(size_t)r * w + c] + delta, full ? 0 : 16), full ? 255 : 235);
+  }
+}
 // A binary reply with the right header for `seq`; *planes gets the payload.
 static bool is_result(const Msg &m, int seq, Bytes *planes = nullptr) {
   float ms;
@@ -225,6 +238,63 @@ int main() {
   ws_send(fd, 2, nreq2.data(), nreq2.size());
   check(ws_recv(fd, &m) && is_result(m, 22, &ngot) && ngot == reference(nv, 0, true, true), "NV12 auto + full range: identical to nvvsr_process(NV12)");
 
+  // 2d. sharpen (flag bits 2..4): the reply's luma is the scalar reference applied to the level-0 reply, chroma untouched
+  for (int lv : {0, 1, 3, 7}) {
+    Bytes rq = request(IW, IH, OW, OH, 3, lv << 2, 30 + lv, in), sh, ref = want;
+    ws_send(fd, 2, rq.data(), rq.size());
+    const bool ok = ws_recv(fd, &m) && is_result(m, 30 + lv, &sh);
+    if (lv) sharpen_ref(ref.data(), OW, OH, lv, false);
+    check(ok && sh == ref, lv ? "sharpen level " + std::to_string(lv) + ": luma = reference, chroma byte-identical to level 0" : "sharpen level 0: identical to the unsharpened reply");
+    if (lv == 3) { size_t diff = 0; for (size_t i = 0; i < (size_t)OW * OH; i++) diff += sh[i] != want[i]; check(diff > 10000, "sharpen level 3 changes the picture (" + std::to_string(diff) + " luma bytes)"); }
+  }
+  // clamps: a 16/235 checkerboard overshoots hard at every edge; limited range clamps to 16..235, full range to 0..255
+  Bytes edges((size_t)IW * IH * 3 / 2, 128);
+  for (int y = 0; y < IH; y++) for (int x = 0; x < IW; x++) edges[(size_t)y * IW + x] = ((x / 16 + y / 16) & 1) ? 235 : 16;
+  auto count = [&](const Bytes &b, bool bounds, bool full) {  // luma bytes on the clamp bounds / outside 16..235
+    size_t n = 0;
+    for (size_t i = 0; i < (size_t)OW * OH; i++) n += bounds ? (b[i] == (full ? 0 : 16) || b[i] == (full ? 255 : 235)) : (b[i] < 16 || b[i] > 235);
+    return n;
+  };
+  for (int full = 0; full < 2; full++) {
+    Bytes b0, b7, r0 = request(IW, IH, OW, OH, 3, full, 40, edges), r7 = request(IW, IH, OW, OH, 3, full | 7 << 2, 41, edges);
+    ws_send(fd, 2, r0.data(), r0.size());
+    bool ok = ws_recv(fd, &m) && is_result(m, 40, &b0);
+    ws_send(fd, 2, r7.data(), r7.size());
+    ok = ok && ws_recv(fd, &m) && is_result(m, 41, &b7);
+    Bytes ref = b0;
+    sharpen_ref(ref.data(), OW, OH, 7, full);
+    const char *rng = full ? "full range" : "limited range";
+    check(ok && b7 == ref, std::string("sharpen level 7, ") + rng + ", checkerboard: equals the reference");
+    check(ok && count(b7, true, full) > count(b0, true, full) + 100, std::string("sharpen ") + rng + ": the clamp is hit");
+    check(ok && (full ? count(b7, false, true) > count(b0, false, true) + 100 : count(b7, false, false) <= count(b0, false, false)),
+          full ? "sharpen full range: values go outside 16..235" : "sharpen limited range: nothing pushed outside 16..235");
+  }
+  // sharpen.h alone on big luma planes: threaded result equals the reference; timing (ms, 4 threads max)
+  for (std::pair<int, int> sz : {std::pair<int, int>{1920, 1080}, std::pair<int, int>{2560, 1440}}) {
+    Bytes p((size_t)sz.first * sz.second);
+    uint32_t rs = 12345;
+    for (uint8_t &v : p) { rs = rs * 1664525u + 1013904223u; v = 16 + (rs >> 24) % 220; }
+    Bytes ref = p, t = p;
+    sharpen_ref(ref.data(), sz.first, sz.second, 3, false);
+    std::vector<uint8_t> tmp;
+    sharpen_luma(t.data(), sz.first, sz.second, 3, false, tmp);
+    std::vector<double> ts;
+    for (int i = 0; i < 10; i++) {
+      Bytes q = p;
+      const auto t0 = std::chrono::steady_clock::now();
+      sharpen_luma(q.data(), sz.first, sz.second, 3, false, tmp);
+      ts.push_back(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
+    }
+    std::sort(ts.begin(), ts.end());
+    printf("  sharpen %dx%d level 3: min %.2f ms, median %.2f ms\n", sz.first, sz.second, ts.front(), ts[ts.size() / 2]);
+#ifdef NDEBUG
+    const bool fast = ts.front() < 15;
+#else
+    const bool fast = true;  // Debug and sanitizer builds are 10x slower: the time bound is for the Release build
+#endif
+    check(t == ref && fast, "sharpen " + std::to_string(sz.first) + "x" + std::to_string(sz.second) + ": threaded result equals the reference, min time < 15 ms (Release)");
+  }
+
   // 3. garbage on one connection: ERR each time, then a good frame is served
   Bytes bad = req;
   bad[0] = 'X';
@@ -233,7 +303,7 @@ int main() {
   check(expect_err(fd, odd) == "ERR odd dimensions", "odd dimensions -> ERR");
   check(expect_err(fd, request(IW, IH, IW / 2, IH / 2, 3, 0, 1, in)) == "ERR bad scale", "downscale -> ERR");
   check(expect_err(fd, request(IW, IH, OW, OH, 9, 0, 1, in)) == "ERR bad quality", "bad quality -> ERR");
-  check(expect_err(fd, request(IW, IH, OW, OH, 3, 4, 1, in)) == "ERR bad flags", "unknown flag bit 2 -> ERR");
+  check(expect_err(fd, request(IW, IH, OW, OH, 3, 0x20, 1, in)) == "ERR bad flags", "unknown flag bit 5 -> ERR");
   check(expect_err(fd, request(IW, IH, OW, OH, 3, 0x80 | 1, 1, in)) == "ERR bad flags", "unknown flag bit 7 -> ERR");
   check(expect_err(fd, request(32, 32, 64, 64, 3, 0, 1, Bytes(32 * 32 * 3 / 2))) == "ERR size out of range", "too small -> ERR");
   Bytes trunc(req.begin(), req.end() - 1), extra = req;

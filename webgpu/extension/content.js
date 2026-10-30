@@ -1,7 +1,7 @@
 // Upscales the fullscreen <video> with NVIDIA VSR (tensor cores) through the local daemon nvvsr_webd (webgpu/daemon): each decoded
 // frame goes out as I420 over ws://127.0.0.1, the upscaled I420 reply is drawn on a canvas laid over the video; audio and controls
 // are untouched. Fullscreen only, on AC power, when the picture is smaller than the video box; any failure gives back the plain video.
-// Alt+S switches it off/on (A/B). Debug: open a page with #nvvsr-debug (or #nvvsr-debug=PORT to also post to a local test server)
+// Alt+S switches it off/on (A/B); Alt+] / Alt+[ raise / lower the sharpening (0..7). Debug: open a page with #nvvsr-debug (or #nvvsr-debug=PORT to also post to a local test server)
 // to log the stats every 2 s.
 (() => {
   // A public page origin (youtube.com) may not reach 127.0.0.1, not even from its content script ("daemon not reachable"). So the socket
@@ -20,6 +20,11 @@
   const log = (...a) => { console.log('[nvvsr]', ...a); report({ log: a.join(' ') }); };
   const report = o => { if (port) navigator.sendBeacon(`http://127.0.0.1:${port}/post?name=ext-${location.hostname}-${Date.now()}.json`, JSON.stringify({ url: location.href, ...o })); };
   let active = null, off = false, gen = 0;  // gen: a start() that sees a newer gen was cancelled by stop()
+  // Sharpening done by the daemon after the upscale (unsharp mask on the luma plane), level 0..7; Alt+] / Alt+[ change it and the
+  // choice is remembered. NVIDIA VSR alone gains only ~0.5 dB on compressed video (webgpu/README.md), the mask is what looks crisper.
+  let sharpen = 3;
+  chrome.storage.local.get('sharpen').then(r => { if (Number.isInteger(r.sharpen) && r.sharpen >= 0 && r.sharpen <= 7) sharpen = r.sharpen; });
+  const qualityFor = h => h <= 800 ? 4 : 3;  // NVIDIA quality: ULTRA up to 800 lines (cleanest edges), HIGH above (ULTRA costs ~40 % more at 1080p)
 
   const badge = text => {
     const b = document.createElement('div');
@@ -114,7 +119,7 @@
         const d = new DataView(buf);
         d.setUint32(0, 0x5253564E, true);  // "NVSR"
         d.setUint16(4, w, true); d.setUint16(6, h, true); d.setUint16(8, dim[0], true); d.setUint16(10, dim[1], true);
-        d.setUint8(12, 0); d.setUint8(13, (f.colorSpace.fullRange ? 1 : 0) | (f.format === 'NV12' ? 2 : 0)); d.setUint16(14, seq, true);
+        d.setUint8(12, qualityFor(h)); d.setUint8(13, (f.colorSpace.fullRange ? 1 : 0) | (f.format === 'NV12' ? 2 : 0) | (sharpen << 2)); d.setUint16(14, seq, true);
         ws.send(buf);  // the browser copies the bytes: the buffer can be reused for the next frame at once
         st.sent++;
       } catch (e) { fail(e.name + ': ' + e.message); } finally { f?.close(); copying = false; }
@@ -155,7 +160,15 @@
     if (mine === gen) start(video, mine);
   };
   document.addEventListener('fullscreenchange', onFullscreen);
-  addEventListener('keydown', e => { if (e.altKey && e.code === 'KeyS') { off = !off; stop(); if (!off) onFullscreen(); badge(off ? 'SR off' : 'SR'); } });
+  addEventListener('keydown', e => {
+    if (!e.altKey) return;
+    if (e.code === 'KeyS') { off = !off; stop(); if (!off) onFullscreen(); badge(off ? 'SR off' : 'SR'); }
+    else if (e.code === 'BracketRight' || e.code === 'BracketLeft') {
+      sharpen = Math.min(7, Math.max(0, sharpen + (e.code === 'BracketRight' ? 1 : -1)));
+      chrome.storage.local.set({ sharpen });
+      badge('SR sharpen ' + sharpen);
+    }
+  }, true);
   if (/[#&]nvvsr-force/.test(location.hash)) setTimeout(() => { const v = biggestVideo(document.body); if (v) start(v, gen); }, 8000);  // debug: start without fullscreen
   report({ loaded: true });
 })();
