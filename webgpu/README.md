@@ -120,6 +120,21 @@ as it is (libnvvsr takes `NVVSR_IN_NV12`) should remove most of it, and a second
 fullscreen key did not start in the headless runs), real DRM sites (they cannot work), the tensor-core load in `nvidia-smi`
 (the sample missed the playback), and the real Hybrid desktop session.
 
+**After the speed-ups (2026-10-30, same setup):** the extension sends Chrome's NV12 frames as they are (header flag bit 1; the
+daemon takes `NVVSR_IN_NV12`, output byte-identical to the I420 route) and keeps up to two requests in flight:
+
+| source -> output | fps in / out | skipped | daemon DROP / ERR | RTT p50 (p95 max) | `copyTo` | draw | lag (median) | RTX sm / mem during playback |
+|---|---|---|---|---|---|---|---|---|
+| 720p30 -> 1440p | 29.3 / 28.6 | 10 of 410 | 0 / 0 | 12.3 (19.9) ms | 6.6 ms | 1.3 ms | 8.7 ms | 17 % / 7 % |
+| 1080p30 -> 1440p | 29.3 / 29.3 | 0 of 410 | 0 / 0 | 13.6 (24.5) ms | 10.1 ms | 1.3 ms | 7.5 ms | 15 % / 5 % |
+| 1080p60 -> 1440p | 55.1 / 51.9 | 45 of 772 | 0 / 0 | 22.5 (27.4) ms | 8.7 ms | 1.3 ms | 7.7 ms | 25 % / 8 % |
+
+The 60 fps clip itself only plays at ~55 fps in this headless harness (plain video managed ~45 earlier), so 52 out of 55 is the
+upscaler keeping up. `copyTo` did not shrink much at 1080p (11 -> 10 ms): the JavaScript de-interleave was not the main cost,
+reading the frame back from the page's GPU texture is. The RTX load (`nvidia-smi dmon`) shows the work happening on the
+GPU; the decoder engine stays at 0 % (CPU decode). The daemon starts with a systemd user unit template,
+`daemon/nvvsr-webd.service` (not installed anywhere).
+
 Debug options in the page URL hash: `#nvvsr-debug[=PORT]` (log the stats; with PORT also post them to `test/server.cpp`) and
 `#nvvsr-box=WxH` (pretend the video box is WxH device pixels).
 

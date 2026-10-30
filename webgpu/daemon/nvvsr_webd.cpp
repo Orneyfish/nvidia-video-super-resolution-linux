@@ -1,8 +1,10 @@
 // nvvsr_webd: localhost WebSocket daemon. A browser extension sends decoded I420 frames, libnvvsr (NVIDIA VSR, tensor
 // cores) upscales them, the reply is an I420 frame. Usage: nvvsr_webd [port=41777] [--origin ORIGIN]...   (0 = ephemeral; prints "LISTENING <port>")
 //
-// Protocol (RFC 6455, binary messages, little endian). Client -> server, 16-byte header + planes Y, U, V:
-//   "NVSR" u16 in_w u16 in_h u16 out_w u16 out_h u8 quality(0 = auto, else nvvsr_quality: 1-4, 21, 23) u8 flags(bit0 = full range) u16 seq
+// Protocol (RFC 6455, binary messages, little endian). Client -> server, 16-byte header + planes:
+//   "NVSR" u16 in_w u16 in_h u16 out_w u16 out_h u8 quality(0 = auto, else nvvsr_quality: 1-4, 21, 23) u8 flags u16 seq
+//   flags: bit0 = full range, bit1 = input is NV12 (Y, then interleaved UV pairs; in_w*in_h*3/2 bytes) instead of I420 (Y, U, V);
+//   any other bit -> ERR. The reply is always I420.
 // Server -> client: "NVSO" u16 out_w u16 out_h u16 seq u16 reserved f32 ms, then the upscaled I420 planes. Text replies:
 //   "ERR <reason>" (bad frame or core error; the connection stays open), "DROP <seq>" (a newer frame replaced this one).
 //
@@ -137,6 +139,7 @@ static const char *parse(const std::vector<uint8_t> &m, Job *j) {
   if (j->ow < j->iw || j->oh < j->ih || j->ow > 4 * j->iw || j->oh > 4 * j->ih) return "bad scale";
   const int q = j->quality;
   if (q > 4 && q != 21 && q != 23) return "bad quality";
+  if (j->flags & ~3) return "bad flags";
   if (m.size() != 16 + (size_t)j->iw * j->ih * 3 / 2) return "bad length";
   return nullptr;
 }
@@ -160,23 +163,24 @@ static void work(Conn &c) {
     std::string err;
     std::vector<uint8_t> out;
     float ms = 0;
+    const bool nv12 = j.flags & 2;
     {
       std::lock_guard<std::mutex> g(gpu);
-      const std::array<int, 6> k{j.iw, j.ih, j.ow, j.oh, j.quality, j.flags & 1};
+      const std::array<int, 6> k{j.iw, j.ih, j.ow, j.oh, j.quality, j.flags};
       if (!ctx || k != key) {
         nvvsr_destroy(ctx); ctx = nullptr;
         nvvsr_config cfg; nvvsr_config_init(&cfg);
         cfg.in_w = j.iw; cfg.in_h = j.ih; cfg.out_w = j.ow; cfg.out_h = j.oh;
         cfg.quality = j.quality ? j.quality : NVVSR_QUALITY_AUTO;
-        cfg.in_format = NVVSR_IN_I420; cfg.out_format = NVVSR_OUT_I420; cfg.full_range = j.flags & 1;
+        cfg.in_format = nv12 ? NVVSR_IN_NV12 : NVVSR_IN_I420; cfg.out_format = NVVSR_OUT_I420; cfg.full_range = j.flags & 1;
         if (nvvsr_create(&cfg, &ctx) != NVVSR_OK) err = std::string("create: ") + nvvsr_last_error(); else key = k;
       }
       if (ctx) {
         out.assign(16 + (size_t)j.ow * j.oh * 3 / 2, 0);
         nvvsr_image_in in{};
         in.plane[0] = j.msg.data() + 16; in.stride[0] = j.iw;
-        in.plane[1] = in.plane[0] + (size_t)j.iw * j.ih; in.stride[1] = j.iw / 2;
-        in.plane[2] = in.plane[1] + (size_t)(j.iw / 2) * (j.ih / 2); in.stride[2] = j.iw / 2;
+        in.plane[1] = in.plane[0] + (size_t)j.iw * j.ih; in.stride[1] = nv12 ? j.iw : j.iw / 2;  // NV12: one interleaved UV plane
+        if (!nv12) { in.plane[2] = in.plane[1] + (size_t)(j.iw / 2) * (j.ih / 2); in.stride[2] = j.iw / 2; }
         nvvsr_image_out o{};
         o.plane[0] = out.data() + 16; o.stride[0] = j.ow;
         o.plane[1] = o.plane[0] + (size_t)j.ow * j.oh; o.stride[1] = j.ow / 2;

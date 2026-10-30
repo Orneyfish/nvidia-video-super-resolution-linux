@@ -48,7 +48,9 @@
     const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
     const st = { sent: 0, recv: 0, dropped: 0, daemonDrop: 0, daemonErr: 0, fmt: '' };  // counters since the start
     const win = { t: performance.now(), fin: 0, recv: 0, rtt: [], copy: [], draw: [], lag: [] };  // the last 2 s
-    let box = video.getBoundingClientRect(), pending = null, seq = 0, opened = false, buf, nv;
+    let box = video.getBoundingClientRect(), seq = 0, copying = false, opened = false, buf;
+    const inflight = new Map();  // seq -> request, for the replies not yet drawn
+    const MAX_INFLIGHT = 2;  // two keep the daemon busy across the round trip (60 fps needs it); more only adds lag
     const place = () => {
       box = video.getBoundingClientRect();
       Object.assign(canvas.style, { position: 'absolute', left: video.offsetLeft + 'px', top: video.offsetTop + 'px',
@@ -71,7 +73,7 @@
       const stats = { ...st, in: [video.videoWidth, video.videoHeight], out: [canvas.width, canvas.height], fpsIn: +(win.fin / s).toFixed(1), fpsOut: +(win.recv / s).toFixed(1),
         rttP50: q(win.rtt, .5), rttP95: q(win.rtt, .95), copyMs: mean(win.copy), drawMs: mean(win.draw), lagMsP50: q(win.lag, .5) };
       Object.assign(win, { t: performance.now(), fin: 0, recv: 0, rtt: [], copy: [], draw: [], lag: [] });
-      if (pending?.t0 && performance.now() - pending.t0 > 3000) { pending = null; st.dropped++; }  // lost reply: never wedge the loop
+      for (const [k, p] of inflight) if (performance.now() - p.t0 > 3000) { inflight.delete(k); st.dropped++; }  // lost reply: never wedge the loop
       if (debug) console.log('[nvvsr] stats', Object.entries(stats).map(([k, v]) => k + '=' + v).join(' '));
       report({ stats });
     };
@@ -80,37 +82,32 @@
       if (active !== me) return;
       me.vfc = video.requestVideoFrameCallback(onFrame);
       win.fin++;
-      if (pending) { st.dropped++; return; }  // one request in flight: skip this frame
-      const p = pending = { seq: seq = (seq + 1) & 0xffff, mt: meta.mediaTime, us: Math.round(meta.mediaTime * 1e6), t0: 0, cs: null };
+      if (copying || inflight.size >= MAX_INFLIGHT) { st.dropped++; return; }  // skip this frame
+      copying = true;
       let f;
       try {
         f = new VideoFrame(video);
         const w = f.visibleRect.width, h = f.visibleRect.height, dim = fit(w, h, box);
         canvas.style.visibility = dim ? '' : 'hidden';
-        if (!dim) { pending = null; return; }
+        if (!dim) return;
         if (canvas.width !== dim[0] || canvas.height !== dim[1]) [canvas.width, canvas.height] = dim;
-        const n = w * h * 3 / 2;
-        if (!buf || buf.byteLength !== 16 + n) { buf = new ArrayBuffer(16 + n); nv = null; }
-        const planes = new Uint8Array(buf, 16), t = performance.now();
+        if (f.format !== 'NV12' && f.format !== 'I420') throw new Error('unsupported frame format ' + f.format);
+        if (!buf || buf.byteLength !== 16 + w * h * 3 / 2) buf = new ArrayBuffer(16 + w * h * 3 / 2);
+        const t = performance.now();
         st.fmt = f.format;
-        if (f.format === 'I420') await f.copyTo(planes);
-        else if (f.format === 'NV12') {  // VA-API frames: Y plane, then interleaved UV; the daemon wants planar
-          await f.copyTo(nv ??= new Uint8Array(n));
-          const y = w * h, c = y / 4;
-          planes.set(nv.subarray(0, y));
-          for (let i = 0; i < c; i++) { planes[y + i] = nv[y + 2 * i]; planes[y + c + i] = nv[y + 2 * i + 1]; }
-        } else throw new Error('unsupported frame format ' + f.format);
+        await f.copyTo(new Uint8Array(buf, 16));  // NV12 (VA-API / most decoders) goes out as it is, flag bit 1: the daemon converts
         win.copy.push(performance.now() - t);
         if (active !== me) return;
-        p.cs = f.colorSpace.toJSON();  // the daemon converts in and out with the same matrix, so the reply keeps the source's tag
+        seq = (seq + 1) & 0xffff;
+        // the daemon converts in and out with the same matrix, so the reply keeps the source's colour tag
+        inflight.set(seq, { mt: meta.mediaTime, us: Math.round(meta.mediaTime * 1e6), t0: performance.now(), cs: f.colorSpace.toJSON() });
         const d = new DataView(buf);
         d.setUint32(0, 0x5253564E, true);  // "NVSR"
         d.setUint16(4, w, true); d.setUint16(6, h, true); d.setUint16(8, dim[0], true); d.setUint16(10, dim[1], true);
-        d.setUint8(12, 0); d.setUint8(13, f.colorSpace.fullRange ? 1 : 0); d.setUint16(14, p.seq, true);
-        p.t0 = performance.now();
-        ws.send(buf);
+        d.setUint8(12, 0); d.setUint8(13, (f.colorSpace.fullRange ? 1 : 0) | (f.format === 'NV12' ? 2 : 0)); d.setUint16(14, seq, true);
+        ws.send(buf);  // the browser copies the bytes: the buffer can be reused for the next frame at once
         st.sent++;
-      } catch (e) { fail(e.name + ': ' + e.message); } finally { f?.close(); }
+      } catch (e) { fail(e.name + ': ' + e.message); } finally { f?.close(); copying = false; }
     };
 
     ws.onopen = () => {
@@ -123,15 +120,15 @@
     ws.onclose = () => fail(opened ? 'connection closed' : 'daemon not reachable');
     ws.onmessage = e => {
       try {
-        if (typeof e.data === 'string') {  // "DROP <seq>" or "ERR <reason>": count, log the first one, free the slot
-          if (e.data.startsWith('DROP')) st.daemonDrop++; else if (!st.daemonErr++) log('daemon said:', e.data);
-          pending = null;
+        if (typeof e.data === 'string') {  // "DROP <seq>" frees that request; "ERR <reason>" names none, so every request is freed
+          if (e.data.startsWith('DROP')) { st.daemonDrop++; inflight.delete(+e.data.split(' ')[1]); }
+          else { if (!st.daemonErr++) log('daemon said:', e.data); inflight.clear(); }
           return;
         }
-        const d = new DataView(e.data);
-        if (d.getUint32(0, true) !== 0x4F53564E || !pending || d.getUint16(8, true) !== pending.seq) return;  // "NVSO", the reply to our request
-        const p = pending, t = performance.now();
-        pending = null;
+        const d = new DataView(e.data), sq = d.getUint16(8, true), p = d.getUint32(0, true) === 0x4F53564E && inflight.get(sq);  // "NVSO": the reply to one of our requests
+        if (!p) return;
+        inflight.delete(sq);
+        const t = performance.now();
         const vf = new VideoFrame(new Uint8Array(e.data, 16), { format: 'I420', codedWidth: d.getUint16(4, true), codedHeight: d.getUint16(6, true), timestamp: p.us, colorSpace: p.cs });
         try { ctx.drawImage(vf, 0, 0, canvas.width, canvas.height); } finally { vf.close(); }
         const t1 = performance.now();

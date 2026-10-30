@@ -1,0 +1,15 @@
+# systemd USER unit for nvvsr_webd (localhost WebSocket daemon of the browser extension). Nothing in this repo installs it.
+# Install: copy to ~/.config/systemd/user/, then `systemctl --user enable --now nvvsr-webd`.
+# Logs (also shows the allowed origins): `journalctl --user -u nvvsr-webd`.
+# More page origins: `systemctl --user edit nvvsr-webd`, then add  [Service] Environment=NVVSR_WEBD_ORIGINS=https://a.example,https://b.example
+# The NVIDIA libraries are found through ~/.config/nvvsr/libdir (or set Environment=NVVSR_LIBDIR=... in the same drop-in).
+[Unit]
+Description=NVIDIA video super resolution daemon (localhost WebSocket)
+
+[Service]
+ExecStart=%h/.local/share/nvvsr/bin/nvvsr_webd 41777 --origin https://www.youtube.com
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

@@ -9,6 +9,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -98,6 +99,12 @@ static Bytes pattern(int w, int h) {
   }
   return b;
 }
+// Same picture as NV12: Y, then U and V interleaved.
+static Bytes to_nv12(const Bytes &i420) {
+  Bytes b(i420.begin(), i420.begin() + IW * IH);
+  for (size_t i = 0; i < (size_t)IW * IH / 4; i++) { b.push_back(i420[(size_t)IW * IH + i]); b.push_back(i420[(size_t)IW * IH * 5 / 4 + i]); }
+  return b;
+}
 static Bytes request(int iw, int ih, int ow, int oh, int q, int flags, int seq, const Bytes &planes) {
   Bytes m(16);
   memcpy(m.data(), "NVSR", 4);
@@ -107,15 +114,16 @@ static Bytes request(int iw, int ih, int ow, int oh, int q, int flags, int seq, 
   return m;
 }
 // libnvvsr called directly with the config the daemon builds for (q, full).
-static Bytes reference(const Bytes &in, int q, bool full) {
+static Bytes reference(const Bytes &in, int q, bool full, bool nv12 = false) {
   nvvsr_config cfg; nvvsr_config_init(&cfg);
   cfg.in_w = IW; cfg.in_h = IH; cfg.out_w = OW; cfg.out_h = OH; cfg.quality = q ? q : NVVSR_QUALITY_AUTO;
-  cfg.in_format = NVVSR_IN_I420; cfg.out_format = NVVSR_OUT_I420; cfg.full_range = full;
+  cfg.in_format = nv12 ? NVVSR_IN_NV12 : NVVSR_IN_I420; cfg.out_format = NVVSR_OUT_I420; cfg.full_range = full;
   nvvsr_ctx *ctx = nullptr;
   Bytes out((size_t)OW * OH * 3 / 2);
   if (nvvsr_create(&cfg, &ctx) != NVVSR_OK) return {};
   nvvsr_image_in a{}; nvvsr_image_out b{};
-  a.plane[0] = in.data(); a.stride[0] = IW; a.plane[1] = a.plane[0] + IW * IH; a.stride[1] = IW / 2; a.plane[2] = a.plane[1] + IW * IH / 4; a.stride[2] = IW / 2;
+  a.plane[0] = in.data(); a.stride[0] = IW; a.plane[1] = a.plane[0] + IW * IH; a.stride[1] = nv12 ? IW : IW / 2;
+  if (!nv12) { a.plane[2] = a.plane[1] + IW * IH / 4; a.stride[2] = IW / 2; }
   b.plane[0] = out.data(); b.stride[0] = OW; b.plane[1] = b.plane[0] + OW * OH; b.stride[1] = OW / 2; b.plane[2] = b.plane[1] + OW * OH / 4; b.stride[2] = OW / 2;
   if (nvvsr_process(ctx, &a, &b) != NVVSR_OK) out.clear();
   nvvsr_destroy(ctx);
@@ -203,6 +211,20 @@ int main() {
     close(px);
   }
 
+  // 2c. NV12 input (flag bit1): identical to nvvsr_process with NVVSR_IN_NV12, and to the I420 route for the same picture
+  const Bytes nv = to_nv12(in);
+  Bytes nreq = request(IW, IH, OW, OH, 3, 2, 21, nv), ngot;
+  ws_send(fd, 2, nreq.data(), nreq.size());
+  check(ws_recv(fd, &m) && is_result(m, 21, &ngot), "NV12 reply header 1280x720 seq 21");
+  check(!ngot.empty() && ngot == reference(nv, 3, false, true), "NV12 HIGH limited: payload identical to nvvsr_process(NV12)");
+  int maxdiff = 0;
+  for (size_t i = 0; i < ngot.size() && i < want.size(); i++) maxdiff = std::max(maxdiff, std::abs((int)ngot[i] - (int)want[i]));
+  printf("  NV12 vs I420 route: sizes %zu/%zu, max byte difference %d\n", ngot.size(), want.size(), maxdiff);
+  check(ngot.size() == want.size() && maxdiff == 0, "NV12 and I420 of the same picture give identical output bytes");
+  Bytes nreq2 = request(IW, IH, OW, OH, 0, 3, 22, nv);  // auto quality + full range + NV12: the context is recreated again
+  ws_send(fd, 2, nreq2.data(), nreq2.size());
+  check(ws_recv(fd, &m) && is_result(m, 22, &ngot) && ngot == reference(nv, 0, true, true), "NV12 auto + full range: identical to nvvsr_process(NV12)");
+
   // 3. garbage on one connection: ERR each time, then a good frame is served
   Bytes bad = req;
   bad[0] = 'X';
@@ -211,6 +233,8 @@ int main() {
   check(expect_err(fd, odd) == "ERR odd dimensions", "odd dimensions -> ERR");
   check(expect_err(fd, request(IW, IH, IW / 2, IH / 2, 3, 0, 1, in)) == "ERR bad scale", "downscale -> ERR");
   check(expect_err(fd, request(IW, IH, OW, OH, 9, 0, 1, in)) == "ERR bad quality", "bad quality -> ERR");
+  check(expect_err(fd, request(IW, IH, OW, OH, 3, 4, 1, in)) == "ERR bad flags", "unknown flag bit 2 -> ERR");
+  check(expect_err(fd, request(IW, IH, OW, OH, 3, 0x80 | 1, 1, in)) == "ERR bad flags", "unknown flag bit 7 -> ERR");
   check(expect_err(fd, request(32, 32, 64, 64, 3, 0, 1, Bytes(32 * 32 * 3 / 2))) == "ERR size out of range", "too small -> ERR");
   Bytes trunc(req.begin(), req.end() - 1), extra = req;
   extra.push_back(0);
