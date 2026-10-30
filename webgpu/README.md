@@ -53,11 +53,45 @@ The user wants NVDEC for decoding and tensor cores for the upscaling, no iGPU. I
   VA-API off (`powerEfficient` false in every combination tried); without Vulkan `requestAdapter()` is null.
 - WebGPU shaders would not use tensor cores anyway. The only tensor-core upscaler here is NVIDIA's VSR network (libnvvsr).
 
-So the plan that fits is: Chrome decodes on NVDEC with the flags above and shows a plain canvas; a local C++ daemon runs
-libnvvsr on the RTX; the extension sends each decoded frame as I420 (`VideoFrame.copyTo`, 3.1 MB at 1080p) over a localhost
-WebSocket and draws the upscaled I420 reply (5.5 MB at 1440p) from a `VideoFrame`: about 260 MB/s at 30 fps. Open risks:
-the page's CSP for WebSockets from a content script, the cost of reading a VA-API frame back, and the 1 to 2 frame lag
-behind the audio.
+So the route that fits (no WebGPU anywhere): Chrome decodes on NVDEC with the flags above; the local C++ daemon
+`nvvsr_webd` (`webgpu/daemon`) runs libnvvsr on the RTX; `extension/content.js` copies each decoded frame with
+`VideoFrame.copyTo` over a localhost WebSocket (3.1 MB at 1080p, one request in flight) and draws the upscaled I420 reply
+(5.5 MB at 1440p) on a 2D canvas over the video: about 260 MB/s at 30 fps. A content script's WebSocket carries the page's
+origin, so the daemon must be told which sites may use it:
+`NVVSR_LIBDIR=$(tools/libdir.sh) webgpu/daemon/build/nvvsr_webd 41777 --origin https://www.youtube.com`
+(build: `cmake -S webgpu/daemon -B webgpu/daemon/build -DCMAKE_BUILD_TYPE=Release && cmake --build webgpu/daemon/build -j`).
+`#nvvsr-debug` in the page URL makes the script log its stats every 2 s.
+
+Measured 2026-10-28 (Chrome 156, the NVDEC flags above, scratch profile, ext_drive; the page was a local test page
+`http://127.0.0.1:PORT` with 30 fps H.264 clips, daemon started with `--origin http://127.0.0.1:PORT`):
+
+- **320x240 works end to end.** Chrome gives **NV12** frames (so `copyTo` with `format: 'I420'` is not an option; the script
+  copies NV12 and de-interleaves the chroma in JS). Output 1280x960 (the 4x cap), 30 fps in and 30 fps out, 21 frames skipped
+  while the daemon creates its context (~0.7 s) then 0 drops, 0 daemon `DROP`/`ERR`; round trip send -> draw p50 9.3 to
+  10.4 ms, p95 11.2 to 13.0 ms; `copyTo` 7.0 to 8.1 ms (a GPU read-back, large for 115 KB); draw 1.1 to 1.3 ms; the picture on
+  screen trails `video.currentTime` by 2.7 to 4.1 ms (median). The WebSocket from a content script on an `http://127.0.0.1`
+  page connected (page origin accepted by the daemon). Screenshots with and without the canvas differ (PSNR 40.4 dB, a little
+  crisper, same colours).
+- **1280x720 fails in this Chrome configuration, before the extension can help.** `copyTo` throws `InvalidStateError: Failed
+  to read VideoFrame data`; the GPU process logs `eglCreateImage failed with 0x3009` (EGL_BAD_MATCH), `Unable to initialize
+  binding from pixmap` and `glReadbackImagePixels: Unknown mailbox` for every frame, and an in-page screenshot of the plain
+  video is white: Chrome cannot import the NVDEC dmabufs into GL at this size (240p worked). The extension then reports
+  "SR failed" and leaves the plain video. Cause not diagnosed. Next thing to try (a guess, not run): drop
+  `AcceleratedVideoDecodeLinuxZeroCopyGL` so the frames are copied instead of imported as zero-copy dmabufs.
+- **Not measured:** 1080p, decoder and SM load (`nvidia-smi dmon`), renderer CPU, and YouTube itself: YouTube answered the
+  scripted scratch profile with its "unusual traffic" reCAPTCHA page (no workaround attempted), so a page CSP on YouTube
+  remains untested. Until 720p and 1080p frames can be read back, the route is **not proven for typical video sizes**.
+- The "Extension" section above still describes the old WebGPU `content.js` (superseded; `extension/src` and
+  `web_accessible_resources` are gone).
+- **Cause found 2026-10-30 (the user saw white frames and continuous repainting in their own Chrome through `tools/nvchrome`):**
+  with the NVDEC flags a 1080p YouTube video renders as a WHITE page (in-page screenshot 17 KB instead of ~1 MB) even though
+  the decoder engine is at 5-11 % and `mediaCapabilities` says hardware. Dropping `AcceleratedVideoDecodeLinuxZeroCopyGL` does
+  not help. Adding `__EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/10_nvidia.json` (Chrome's EGL on the RTX too)
+  gives a correct picture (944 KB screenshot) but Chrome then reports no hardware decode. So NVDEC decoding and a correct
+  picture have not been obtained together in Chrome 156 here; the upscaling route needs readable frames, so it is blocked on
+  this, not on the daemon (which works: 240p end to end at 30 fps, ~10 ms round trip). Ideas not tried: `--render-node-override`
+  for the NVIDIA node (`/dev/dri/renderD129`), `NVD_BACKEND=egl`, Chrome's Vulkan video decode, a newer `libva-nvidia-driver`.
+- The launchers were reverted to plain Chrome on 2026-10-30; `~/.local/bin/nvchrome` was removed.
 
 `test/ext_drive.cpp` (C++) drives Chrome through `--remote-debugging-pipe`: `--load-extension` is gone in Chrome 156 and
 remote debugging is refused on the default profile directory, so it uses `Extensions.loadUnpacked` on a scratch profile:

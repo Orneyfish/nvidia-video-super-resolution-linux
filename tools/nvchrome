@@ -1,10 +1,13 @@
 #!/bin/bash
+# EXPERIMENTAL, NOT FOR DAILY USE (found 2026-10-30; the user's own Chrome showed white frames and repainted continuously).
+# With these flags NVDEC decoding works (decoder engine 5-11 % on 1080p60) but Chrome cannot import the decoded frames into its
+# Intel-GL compositor (eglCreateImage EGL_BAD_MATCH): video >= 720p renders WHITE. Adding __EGL_VENDOR_LIBRARY_FILENAMES=
+# /usr/share/glvnd/egl_vendor.d/10_nvidia.json renders correctly (Chrome fully on the RTX) but then Chrome turns VA-API off, i.e.
+# software decode. No combination tried gives NVDEC and a correct picture. It is not installed and no launcher uses it.
 # Chrome (browser and web apps) on the NVIDIA GPU: NVDEC video decode through VA-API (libva-nvidia-driver) and GL on the RTX.
 # usage: nvchrome [chrome args...]     e.g. nvchrome --profile-directory=Default --app-id=<id>
 # Chrome honours only the LAST --enable-features / --disable-features, so the two entries of ~/.config/chrome-flags.conf
 # (TouchpadOverscrollHistoryNavigation, ExtensionManifestV2Unsupported) are repeated here.
-# Measured (Chrome 156): 1080p60 YouTube, decoder engine 5-11%, 0 dropped frames. WebGPU on the RTX and VA-API exclude each
-# other in Chrome (WebGPU needs Vulkan, which turns VA-API off): see webgpu/README.md.
 export LIBVA_DRIVER_NAME=nvidia NVD_BACKEND=direct __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia
 exec google-chrome-stable --ozone-platform=wayland --use-gl=angle --use-angle=gl \
   --enable-features=VaapiOnNvidiaGPUs,AcceleratedVideoDecodeLinuxGL,AcceleratedVideoDecodeLinuxZeroCopyGL,VaapiIgnoreDriverChecks,TouchpadOverscrollHistoryNavigation \
