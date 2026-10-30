@@ -12,6 +12,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -129,8 +130,16 @@ int main(int argc, char** argv) {
   if (const char* probe = getenv("EXT_DRIVE_EVAL")) {  // optional async expression run in the page itself, result printed raw
     string e;
     for (char ch : string(probe)) { if (ch == '"' || ch == '\\') e += '\\'; e += ch; }
-    printf("probe: %s\n", c.call("Runtime.evaluate", "{\"expression\":\"" + e + "\",\"awaitPromise\":true,\"returnByValue\":true}", session).substr(0, 800).c_str());
+    printf("probe: %s\n", c.call("Runtime.evaluate", "{\"expression\":\"" + e + "\",\"awaitPromise\":true,\"returnByValue\":true,\"userGesture\":true}", session).substr(0, 800).c_str());
   }
+  if (const char* dc = getenv("EXT_DRIVE_DBLCLICK")) {  // "x,y": a double click, which YouTube's players treat as fullscreen (a real user gesture)
+    const char* comma = strchr(dc, ',');
+    string x = string(dc, comma ? comma - dc : strlen(dc)), y = comma ? comma + 1 : "0";
+    for (int n = 1; n <= 2; ++n)
+      for (const char* t : {"mousePressed", "mouseReleased"})
+        c.call("Input.dispatchMouseEvent", string("{\"type\":\"") + t + "\",\"x\":" + x + ",\"y\":" + y + ",\"button\":\"left\",\"clickCount\":" + std::to_string(n) + "}", session);
+  } else if (getenv("EXT_DRIVE_NOKEY")) {  // the probe expression already asked for fullscreen (it runs as a user gesture)
+  } else
   key(c, session, "f", "KeyF", 70, "f");
   c.pump(wait_fs);
   string st = evaluate(c, session);

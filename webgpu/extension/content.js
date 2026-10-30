@@ -39,10 +39,10 @@
   };
 
   async function start(video, mine) {
-    if (video.mediaKeys) return log('DRM video, off');
-    if (!video.videoHeight || !fit(video.videoWidth, video.videoHeight, video.getBoundingClientRect())) return log('nothing to gain', video.videoWidth + 'x' + video.videoHeight);
+    if (video.mediaKeys) { badge('SR off, DRM'); return log('DRM video, off'); }
+    if (!video.videoHeight || !fit(video.videoWidth, video.videoHeight, video.getBoundingClientRect())) { badge('SR: no gain'); return log('nothing to gain', video.videoWidth + 'x' + video.videoHeight); }  // e.g. a 1440p video on a 1440p screen: pick 720p/1080p to see it
     const bat = await navigator.getBattery?.().catch(() => null);
-    if (bat && !bat.charging) return log('on battery, off');
+    if (bat && !bat.charging) { badge('SR off, battery'); return log('on battery, off'); }
     if (mine !== gen) return;
 
     const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
