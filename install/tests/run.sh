@@ -416,7 +416,7 @@ snap "$H8" "$SCR/h8.before"
 PATH=$SYSD:$PATH run "$SCR/d0.log" install --home "$H8" --no-mpv --no-vlc --skip-wheel --with-chrome --dry-run
 eq "webd dry run: exit 0" "$RC" 0
 dl() { grep -n -- "$1" "$SCR/d0.log" | head -n 1 | cut -d: -f1; }
-b=$(dl "would build .*webd"); i=$(dl "would install .*bin/nvvsr_webd"); c=$(dl "would create .*systemd/user/nvvsr-webd.service")
+b=$(dl "would build .*webd"); i=$(dl "would \(install\|create\) .*bin/nvvsr_webd"); c=$(dl "would create .*systemd/user/nvvsr-webd.service")
 r=$(dl "would systemctl --user daemon-reload"); e=$(dl "would systemctl --user enable --now nvvsr-webd.service")
 if [ -n "$b$i$c$r$e" ] && [ "$b" -lt "$i" ] && [ "$i" -lt "$c" ] && [ "$c" -lt "$r" ] && [ "$r" -lt "$e" ]; then ok "webd dry run: build, binary, unit, daemon-reload, enable in that order"
 else bad "webd dry run: plan order"; fi
@@ -444,6 +444,8 @@ rm -f "$SYSLOG"
 PATH=$SYSD:$PATH run "$SCR/d3.log" uninstall --home "$H8" --yes; eq "webd uninstall: exit 0" "$RC" 0
 has "$SYSLOG" "^--user disable --now nvvsr-webd.service$" && ok "webd uninstall: systemctl --user disable --now called" || bad "webd uninstall: disable"
 f "webd uninstall: unit and binary removed" test -e "$UNIT8" -o -e "$P8/bin/nvvsr_webd"
+# regression: the daemon build must link against the installed core ($LIB_DIR), not the core's build tree (which has no library after an install)
+grep -q 'webgpu/daemon.*-DNVVSR_CORE_BUILD_DIR="\$LIB_DIR"' "$REPO/install/install.sh" && ok "webd build: links against the installed core library directory" || bad "webd build: NVVSR_CORE_BUILD_DIR"
 
 echo "== 14. the real home and the package manager"
 snap_real >"$SCR/real-after.txt"

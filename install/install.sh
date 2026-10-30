@@ -720,7 +720,7 @@ step_webd() {
   else
     src=$WEBD_BUILD/nvvsr_webd
     act build "webd ($WEBD_BUILD)"
-    if [ "$DRY" = 0 ] && ! { cmake -S "$REPO/webgpu/daemon" -B "$WEBD_BUILD" -DCMAKE_BUILD_TYPE=Release -DNVVSR_CORE_BUILD_DIR="$BUILD_DIR/core" &&
+    if [ "$DRY" = 0 ] && ! { cmake -S "$REPO/webgpu/daemon" -B "$WEBD_BUILD" -DCMAKE_BUILD_TYPE=Release -DNVVSR_CORE_BUILD_DIR="$LIB_DIR" &&
                               cmake --build "$WEBD_BUILD" -j "$JOBS"; } >"$log" 2>&1; then
       tail -n 25 "$log" >&2
       step_failed webd "build failed (last lines above)"; return 1
