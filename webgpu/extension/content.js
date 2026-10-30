@@ -23,8 +23,10 @@
 
   // Output size: the source fitted into the video box (object-fit: contain) x devicePixelRatio, 1x to 4x, even, inside the daemon's
   // limits. null = nothing to gain (< 2%) or a size the daemon refuses: leave the plain video.
+  const FORCE = /[#&]nvvsr-box=(\d+)x(\d+)/.exec(location.hash);  // debug: pretend the video box is WxH device pixels (headless outputs are small)
   const fit = (w, h, box) => {
-    const k = Math.min(box.width * devicePixelRatio / w, box.height * devicePixelRatio / h, 4, 4096 / w, 2304 / h);
+    const bw = FORCE ? +FORCE[1] : box.width * devicePixelRatio, bh = FORCE ? +FORCE[2] : box.height * devicePixelRatio;
+    const k = Math.min(bw / w, bh / h, 4, 4096 / w, 2304 / h);
     return (w | h) & 1 || w < 64 || h < 64 || w > 4096 || h > 2304 || k < 1.02 ? null : [Math.round(w * k / 2) * 2, Math.round(h * k / 2) * 2];
   };
 

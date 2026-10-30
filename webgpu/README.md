@@ -98,6 +98,31 @@ remote debugging is refused on the default profile directory, so it uses `Extens
 `ext_drive CHROME webgpu/extension URL OUT_DIR WAIT_LOAD_S WAIT_FS_S --user-data-dir=DIR --ignore-gpu-blocklist ...`; it opens one
 window, presses `f`, and writes the page state and two screenshots (canvas on and hidden) to OUT_DIR.
 
+### The route that works in Hybrid mode: CPU decode + tensor-core upscaling (measured 2026-10-30)
+
+NVDEC decoding and a correct picture cannot be had together in Chrome 156 in Hybrid mode (Chrome's GL runs on the GPU the
+compositor uses, the Intel one, and cannot import NVIDIA-decoded dmabufs; with NVIDIA EGL/GLX Chrome switches VA-API off). The
+alternative that needs no MUX switch: leave Chrome's decoding alone (default flags, CPU) and upscale on the RTX through the
+daemon. Software-decoded frames are already in system memory, so `copyTo` is a memory copy, not a GPU read-back.
+
+Measured in a headless `cage` (compositor on Intel, `gles2`), default Chrome flags, extension `content.js`, daemon on the RTX,
+test page with 30 fps H.264 clips and `#nvvsr-box=2560x1440` (pretend the video fills a 2560x1440 screen); one request in flight:
+
+| source -> output | fps in / out | frames | daemon DROP / ERR | RTT p50 / p95 | `copyTo` | draw | lag behind the video |
+|---|---|---|---|---|---|---|---|
+| 720p -> 2560x1440 | ~30 / ~28 | 390 sent, 390 received | 0 / 0 | not saved (first run), same order as 1080p | | | |
+| 1080p -> 2560x1440 | 30 / 28-29 | 383 sent, 383 received | 0 / 0 | 13.4-14.3 / 14.8-18.9 ms | 10.5-11.3 ms | 1.2 ms | 6-12 ms (median) |
+
+About 7 % of the frames were skipped on the Chrome side (a request was still in flight), none by the daemon. The lag is well
+under one frame, so lip sync is not an issue. `copyTo` is dominated by the JavaScript NV12 -> I420 de-interleave: sending NV12
+as it is (libnvvsr takes `NVVSR_IN_NV12`) should remove most of it, and a second request in flight is needed for 60 fps (RTT p95
+~18 ms is above the 16.6 ms budget). Not verified: real YouTube (its page CSP for the content script's WebSocket; the scripted
+fullscreen key did not start in the headless runs), real DRM sites (they cannot work), the tensor-core load in `nvidia-smi`
+(the sample missed the playback), and the real Hybrid desktop session.
+
+Debug options in the page URL hash: `#nvvsr-debug[=PORT]` (log the stats; with PORT also post them to `test/server.cpp`) and
+`#nvvsr-box=WxH` (pretend the video box is WxH device pixels).
+
 ## Results (Chrome 156, headless `cage`, 2560x1440 canvas, RTX 3070 Ti Laptop + Intel Iris Xe)
 
 `test/run.sh --config intel` = plain Chrome, WebGPU on the iGPU that composites (the RTX stays asleep).

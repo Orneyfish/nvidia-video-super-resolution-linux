@@ -148,6 +148,7 @@ int main(int argc, char** argv) {
   st = evaluate(c, session);
   save(out + "/state-after.json", st);
   printf("after: %s\n", st.c_str());
+  if (const char* bc = getenv("EXT_DRIVE_BROWSER_CALL")) printf("browser call: %s\n", c.call(bc).substr(0, 200000).c_str());  // e.g. SystemInfo.getInfo
   c.call("Browser.close");
   waitpid(pid, nullptr, 0);
   return 0;
