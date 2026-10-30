@@ -17,3 +17,14 @@ mpv with `--vo=dmabuf-wayland` and from VLC's `wl_shm` output; every default pla
 the compositor gets it. So a general driver or compositor level upscaler is not possible on Linux today; per-player
 integration (what mpv/VLC/Chrome already have here) is the working design. What a system level service can still do: manage the
 GPU (wake it before an upscaler starts, release it after) and start helper daemons on demand.
+
+## The RTX never sleeps in this session (2026-10-30)
+`fuser /dev/nvidia0` lists Hyprland, hyprpolkitagent and VS Code's Electron: the compositor initializes EGL on every DRM device it
+finds (nothing in `~/.config/hypr` selects the RTX), so `runtime_status` stays `active` for the whole session even when idle (P8,
+~20 W, 210 MHz). Consequences: (1) a service that "wakes the GPU before an upscaler starts" has nothing to do here, the wake stall
+the panel's battery rule worries about does not occur; (2) on battery the dGPU costs ~20 W all the time. Optional fix (not applied,
+changes the compositor's startup; keep a TTY handy): `hl.env("AQ_DRM_DEVICES", "/dev/dri/card1")` in `custom/env.lua` makes Hyprland
+use only the Intel card that drives the panel, after which the RTX can suspend when no client holds it. Verify with
+`fuser /dev/nvidia0` and `cat /sys/bus/pci/devices/0000:01:00.0/power/runtime_status`.
+Nothing at the kernel or driver level needs to be told to "use accelerated computing": the device nodes are world-writable, the
+driver is loaded and awake, and the upscalers (libnvvsr in mpv/VLC/the daemon) just open it.
