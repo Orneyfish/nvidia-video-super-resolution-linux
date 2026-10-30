@@ -4,7 +4,7 @@
  * pictures VLC shows through the nvvsr module can be compared byte for byte.
  *
  *   nvvsr_vlc_ref IWxIH OWxOH QUALITY MATRIX RANGE FRAMES in.i420 out.i420
- *     QUALITY auto|bicubic|low|medium|high|ultra   MATRIX auto|601|709   RANGE limited|full
+ *     QUALITY auto|bicubic|low|medium|high|ultra|streaming_medium|streaming_ultra   MATRIX auto|601|709   RANGE limited|full
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,6 +18,8 @@ static int quality_of(const char *q) {
   if (!strcmp(q, "medium")) return NVVSR_QUALITY_MEDIUM;
   if (!strcmp(q, "high")) return NVVSR_QUALITY_HIGH;
   if (!strcmp(q, "ultra")) return NVVSR_QUALITY_ULTRA;
+  if (!strcmp(q, "streaming_medium")) return NVVSR_QUALITY_STREAMING_MEDIUM;
+  if (!strcmp(q, "streaming_ultra")) return NVVSR_QUALITY_STREAMING_ULTRA;
   return NVVSR_QUALITY_AUTO;
 }
 

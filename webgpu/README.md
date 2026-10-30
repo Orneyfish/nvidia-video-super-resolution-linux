@@ -138,6 +138,16 @@ GPU; the decoder engine stays at 0 % (CPU decode). The daemon starts with a syst
 Debug options in the page URL hash: `#nvvsr-debug[=PORT]` (log the stats; with PORT also post them to `test/server.cpp`) and
 `#nvvsr-box=WxH` (pretend the video box is WxH device pixels) and `#nvvsr-force` (start 8 s after load without fullscreen).
 
+**How much sharper is it? (user: "SR active but the sharpness is not there at all", measured 2026-10-30)** The upscaling is
+really applied (Playwright run `test/pw_compare.js`, real YouTube 720p at device scale 2: canvas on vs off differ, PSNR
+37.5 dB between them), but the gain of NVIDIA's network on compressed video is small. Objective test (4 photos -> 2560x1440
+reference -> 1280x720 -> H.264 CRF 27 -> 2x upscale, mean PSNR / SSIM against the reference; tool `vlc/build/nvvsr_vlc_ref`):
+ffmpeg bicubic 38.18 dB / 0.9469, libnvvsr bicubic 38.20 / 0.9475, HIGH 38.55 / 0.9502, **ULTRA 38.72 / 0.9517**,
+STREAMING_MEDIUM 38.30 / 0.9496, STREAMING_ULTRA 38.38 / **0.9521**. The default `auto` picks HIGH at 720p; ULTRA gains ~0.2 dB
+more. Viewed side by side the network cleans edges a little but cannot restore detail the compression removed; a plain
+unsharp mask after the upscale makes edges look crisper (more halos, slightly lower SSIM). Larger gains are expected for
+lower-resolution sources (360p/480p) than for 720p/1080p on a 1440p screen.
+
 **Why the socket lives in an extension iframe (found 2026-10-30):** on real YouTube the extension showed "SR failed": a public
 page origin (https://www.youtube.com) cannot open a WebSocket to `127.0.0.1`, not even from its content script
 ("daemon not reachable within 1.5 s"; the same code connected from a page on `http://127.0.0.1`). `content.js` therefore injects
