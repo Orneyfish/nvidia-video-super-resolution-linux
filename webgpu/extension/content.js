@@ -62,7 +62,7 @@
     if (mine !== gen) return;
 
     const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
-    const st = { sent: 0, recv: 0, dropped: 0, daemonDrop: 0, daemonErr: 0, fmt: '' };  // counters since the start
+    const st = { sent: 0, recv: 0, dropped: 0, daemonDrop: 0, fmt: '' };  // counters since the start
     const win = { t: performance.now(), fin: 0, recv: 0, rtt: [], copy: [], draw: [], lag: [] };  // the last 2 s
     let box = video.getBoundingClientRect(), seq = 0, copying = false, opened = false, buf;
     const inflight = new Map();  // seq -> request, for the replies not yet drawn
@@ -78,11 +78,13 @@
     me.ro.observe(video);
     const fail = why => { if (active !== me) return; log('failed:', why); stop(); badge('SR failed'); };
     me.timer = setTimeout(() => fail('daemon not reachable within 1.5 s'), 1500);
+    if (bat) bat.onchargingchange = () => { if (!bat.charging && active === me) { stop(); badge('SR off, battery'); log('unplugged, off'); } };  // the dGPU draws ~150 W
 
     // p50/p95 of a window array, mean for the cheap ones
     const q = (a, p) => a.length ? +[...a].sort((x, y) => x - y)[Math.min(a.length - 1, Math.floor(a.length * p))].toFixed(1) : null;
     const mean = a => a.length ? +(a.reduce((x, y) => x + y, 0) / a.length).toFixed(1) : null;
     const tick = () => {
+      if (inflight.size && performance.now() - me.lastRecv > 3000) return fail('no reply for 3 s');  // a frozen canvas over a playing video is worse than none
       place();  // follows the video if the page moves it
       const s = (performance.now() - win.t) / 1000;
       const stats = { ...st, in: [video.videoWidth, video.videoHeight], out: [canvas.width, canvas.height], fpsIn: +(win.fin / s).toFixed(1), fpsOut: +(win.recv / s).toFixed(1),
@@ -127,6 +129,7 @@
 
     ws.onopen = () => {
       opened = true;
+      me.lastRecv = performance.now();
       clearInterval(me.timer);
       me.timer = setInterval(tick, 2000);
       me.vfc = video.requestVideoFrameCallback(onFrame);
@@ -135,9 +138,10 @@
     ws.onclose = () => fail(opened ? 'connection closed' : 'daemon not reachable');
     ws.onmessage = e => {
       try {
-        if (typeof e.data === 'string') {  // "DROP <seq>" frees that request; "ERR <reason>" names none, so every request is freed
+        me.lastRecv = performance.now();
+        if (typeof e.data === 'string') {  // "DROP <seq>" frees that request; "ERR <reason>" (e.g. not enough GPU memory) gives the plain video back
           if (e.data.startsWith('DROP')) { st.daemonDrop++; inflight.delete(+e.data.split(' ')[1]); }
-          else { if (!st.daemonErr++) log('daemon said:', e.data); inflight.clear(); }
+          else fail(e.data);
           return;
         }
         const d = new DataView(e.data), sq = d.getUint16(8, true), p = d.getUint32(0, true) === 0x4F53564E && inflight.get(sq);  // "NVSO": the reply to one of our requests
