@@ -121,10 +121,12 @@ std::vector<std::string> probe_env(const std::optional<std::string> &libdir) {
   return env;
 }
 
-// nvvsr_probe next to the library (build tree or install), then ~/.local/bin, then PATH.
+// nvvsr_probe next to the library (build tree), in <prefix>/bin beside <prefix>/lib (install), then ~/.local/bin, then PATH.
 std::optional<std::string> probe_tool(const std::string &lib_path) {
   const fs::path dir = fs::path(lib_path).parent_path();
-  if (!dir.empty() && is_exe((dir / "nvvsr_probe").string())) return (dir / "nvvsr_probe").string();
+  if (!dir.empty())
+    for (const fs::path &d : {dir, dir.parent_path() / "bin"})
+      if (is_exe((d / "nvvsr_probe").string())) return (d / "nvvsr_probe").string();
   const std::string local = home() + "/.local/bin/nvvsr_probe";
   if (is_exe(local)) return local;
   if (on_path("nvvsr_probe")) return std::string("nvvsr_probe");

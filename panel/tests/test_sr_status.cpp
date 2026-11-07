@@ -161,6 +161,16 @@ void test_probe_ok() {
   CHECK_EQ(r.detail, std::string("ok"));
 }
 
+// test_probe_is_found_in_the_installed_layout (<prefix>/lib/libnvvsr.so, <prefix>/bin/nvvsr_probe, nothing on PATH)
+void test_probe_installed_layout() {
+  const Scratch s;
+  const std::string lib = fake_lib(s);
+  support::write_exec(s.root + "/bin/nvvsr_probe", kFakeProbe);
+  const ProbeResult r = run_probe(lib, "/some/libdir");
+  CHECK(r.ok, "the probe in ../bin of the library directory is found without PATH");
+  CHECK_EQ(r.detail, std::string("ok"));
+}
+
 // test_probe_failure_shows_status_and_last_error
 void test_probe_failure() {
   const Scratch s;
@@ -234,6 +244,7 @@ int main() {
   test_mpv_without_vapoursynth_filter();
   test_mpv_filter_detection();
   test_probe_ok();
+  test_probe_installed_layout();
   test_probe_failure();
   test_probe_without_libdir();
   test_probe_broken_or_missing();

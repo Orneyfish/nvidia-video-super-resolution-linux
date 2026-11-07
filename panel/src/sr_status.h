@@ -42,7 +42,7 @@ struct ProbeResult {
   std::string detail;  // the probe's single output line
 };
 
-// Runs nvvsr_probe in a child process. It is found next to lib_path, in ~/.local/bin, or on PATH.
+// Runs nvvsr_probe in a child process. It is found next to lib_path, in ../bin of lib_path's directory (installed layout), in ~/.local/bin, or on PATH.
 // libdir is passed as NVVSR_LIBDIR (nullopt: the variable is removed). Touches the GPU: call only on request.
 ProbeResult run_probe(const std::string &lib_path, const std::optional<std::string> &libdir, double timeout_s = 90.0);
 
