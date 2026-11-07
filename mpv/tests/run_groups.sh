@@ -7,7 +7,7 @@
 # tools/libdir.sh), NVVSR_PLUGIN (default vapoursynth/build/libvsnvvsr.so), NVVSR_MPV (default
 # ~/.local/opt/mpv-vsr/bin/mpv), NVVSR_ONLY_TAGS (space-separated check tags, see lib.sh wanted()).
 # Exit status: the number of failed checks (capped at 255). Skips, with exit 0, while another process uses the GPU
-# or an Ollama model is resident.
+# or an Ollama model is resident, with exit 77 (run.sh reports that as "groups SKIPPED").
 set -u
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -29,10 +29,10 @@ export NVVSR_PLUGIN=${NVVSR_PLUGIN:-$REPO/vapoursynth/build/libvsnvvsr.so}
 [ -f "$NVVSR_PLUGIN" ] || { echo "FAIL build: $NVVSR_PLUGIN missing, build vapoursynth/ first"; exit 1; }
 T_MPV=${NVVSR_MPV:-$HOME/.local/opt/mpv-vsr/bin/mpv}
 busy=$(nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader 2>/dev/null)
-if [ -n "$busy" ]; then echo "SKIP mpv groups: another process uses the GPU: $busy"; exit 0; fi
+if [ -n "$busy" ]; then echo "SKIP mpv groups: another process uses the GPU: $busy"; exit 77; fi
 if command -v ollama >/dev/null 2>&1; then
     resident=$(ollama ps 2>/dev/null | tail -n +2)
-    if [ -n "$resident" ]; then echo "SKIP mpv groups: an Ollama model is resident: $resident"; exit 0; fi
+    if [ -n "$resident" ]; then echo "SKIP mpv groups: an Ollama model is resident: $resident"; exit 77; fi
 fi
 
 # VapourSynth finds its libvsscript entry in a scratch XDG config (same setup as run.sh)
