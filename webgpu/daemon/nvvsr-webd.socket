@@ -1,0 +1,10 @@
+# systemd USER socket for nvvsr-webd.service: systemd listens on loopback and starts the daemon on the first connection, so the
+# RTX stays asleep until a page uses it. See nvvsr-webd.service for installing.
+[Unit]
+Description=NVIDIA video super resolution daemon socket (localhost WebSocket)
+
+[Socket]
+ListenStream=127.0.0.1:41777
+
+[Install]
+WantedBy=sockets.target

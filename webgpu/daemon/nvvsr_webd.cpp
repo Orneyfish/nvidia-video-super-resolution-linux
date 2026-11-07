@@ -1,5 +1,8 @@
 // nvvsr_webd: localhost WebSocket daemon. A browser extension sends decoded I420 frames, libnvvsr (NVIDIA VSR, tensor
-// cores) upscales them, the reply is an I420 frame. Usage: nvvsr_webd [port=41777] [--origin ORIGIN]...   (0 = ephemeral; prints "LISTENING <port>")
+// cores) upscales them, the reply is an I420 frame. Usage: nvvsr_webd [port=41777] [--origin ORIGIN]... [--idle-exit SECONDS]
+// (port 0 = ephemeral; prints "LISTENING <port>"). Under systemd socket activation (LISTEN_FDS) fd 3 is the listening socket and
+// the port is ignored. --idle-exit N (0 = never): exit 0 after N seconds without an open connection, because libnvvsr keeps its
+// CUDA context and ~290 MiB alive for the life of the process, which keeps the RTX from runtime-suspending.
 //
 // Protocol (RFC 6455, binary messages, little endian). Client -> server, 16-byte header + planes:
 //   "NVSR" u16 in_w u16 in_h u16 out_w u16 out_h u8 quality(0 = auto, else nvvsr_quality: 1-4, 21, 23) u8 flags u16 seq
@@ -16,7 +19,9 @@
 // shortcut: a reader and a worker thread per connection, at most 4 connections, no TLS, no auth beyond Origin; upgrade if the
 // daemon ever listens beyond loopback.
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <netinet/in.h>
+#include <poll.h>
 #include <signal.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -24,6 +29,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <cstdint>
 #include <cstdio>
@@ -304,34 +310,66 @@ static void read_loop(Conn &c) {
 }
 
 static std::atomic<int> conns{0};
+static std::atomic<int64_t> last_active{0};  // steady-clock ms of start / accept / the end of the latest connection
+static int64_t now_ms() {
+  return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
 
 int main(int argc, char **argv) {
   signal(SIGPIPE, SIG_IGN);
-  int port = 41777, i = 1;
+  int port = 41777, idle_exit = 0, i = 1;
   if (i < argc && argv[i][0] != '-') port = atoi(argv[i++]);
   if (const char *env = getenv("NVVSR_WEBD_ORIGINS")) {
     std::istringstream is(env);
     for (std::string o; std::getline(is, o, ',');) if (!o.empty()) allowed_origins.push_back(o);
   }
-  for (; i + 1 < argc && !strcmp(argv[i], "--origin"); i += 2) allowed_origins.push_back(argv[i + 1]);
-  if (i != argc || port < 0 || port > 65535) { fprintf(stderr, "usage: nvvsr_webd [port] [--origin ORIGIN]...\n"); return 2; }
+  for (; i + 1 < argc; i += 2) {
+    if (!strcmp(argv[i], "--origin")) allowed_origins.push_back(argv[i + 1]);
+    else if (!strcmp(argv[i], "--idle-exit")) idle_exit = atoi(argv[i + 1]);
+    else break;
+  }
+  if (i != argc || port < 0 || port > 65535 || idle_exit < 0) {
+    fprintf(stderr, "usage: nvvsr_webd [port] [--origin ORIGIN]... [--idle-exit SECONDS]\n");
+    return 2;
+  }
   std::string shown = "chrome-extension://*, moz-extension://*";
   for (const std::string &o : allowed_origins) shown += ", " + o;
   fprintf(stderr, "nvvsr_webd: allowed origins: %s (and clients that send no Origin)\n", shown.c_str());
-  const int ls = socket(AF_INET, SOCK_STREAM, 0);
-  const int one = 1;
-  setsockopt(ls, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
+  // systemd socket activation (sd_listen_fds without libsystemd): the inherited listening socket is fd 3
+  const char *lpid = getenv("LISTEN_PID"), *lfds = getenv("LISTEN_FDS");
+  const bool activated = lpid && lfds && atol(lpid) == (long)getpid() && atoi(lfds) >= 1;
+  unsetenv("LISTEN_PID"); unsetenv("LISTEN_FDS"); unsetenv("LISTEN_FDNAMES");
+  const int ls = activated ? 3 : socket(AF_INET, SOCK_STREAM, 0);
   sockaddr_in a{};
-  a.sin_family = AF_INET;
-  a.sin_port = htons(port);
-  a.sin_addr.s_addr = htonl(INADDR_LOOPBACK);  // loopback only, never 0.0.0.0
   socklen_t al = sizeof a;
-  if (ls < 0 || bind(ls, (sockaddr *)&a, sizeof a) || listen(ls, 8) || getsockname(ls, (sockaddr *)&a, &al)) { perror("nvvsr_webd"); return 1; }
+  if (!activated) {
+    const int one = 1;
+    setsockopt(ls, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
+    a.sin_family = AF_INET;
+    a.sin_port = htons(port);
+    a.sin_addr.s_addr = htonl(INADDR_LOOPBACK);  // loopback only, never 0.0.0.0
+    if (ls < 0 || bind(ls, (sockaddr *)&a, sizeof a) || listen(ls, 8)) { perror("nvvsr_webd"); return 1; }
+  }
+  if (getsockname(ls, (sockaddr *)&a, &al)) { perror("nvvsr_webd"); return 1; }
+  if (a.sin_family != AF_INET || (ntohl(a.sin_addr.s_addr) >> 24) != 127) {  // a .socket edited to listen beyond loopback
+    fprintf(stderr, "nvvsr_webd: the listening socket is not IPv4 loopback\n");
+    return 1;
+  }
+  fcntl(ls, F_SETFL, fcntl(ls, F_GETFL) | O_NONBLOCK);  // a connection reset between poll and accept must not block the idle check
   printf("LISTENING %d\n", ntohs(a.sin_port));
   fflush(stdout);
+  last_active = now_ms();
   for (;;) {
+    pollfd pl{ls, POLLIN, 0};
+    const int r = poll(&pl, 1, idle_exit ? 1000 : -1);
+    // Only with nothing pending: a queued connection would be reset by the exit (under systemd it would instead restart us).
+    if (r == 0 && conns == 0 && now_ms() - last_active >= idle_exit * 1000LL) {
+      fflush(stdout);
+      _exit(0);  // not exit(): the NVIDIA libraries' atexit handlers may crash, and Restart=on-failure would bring us back
+    }
+    if (r <= 0) { if (r < 0 && errno != EINTR) usleep(10000); continue; }
     const int fd = accept(ls, nullptr, nullptr);
-    if (fd < 0) { if (errno != EINTR) usleep(10000); continue; }
+    if (fd < 0) { if (errno != EINTR && errno != EAGAIN) usleep(10000); continue; }
     if (conns >= MAX_CONNS) { close(fd); continue; }
     conns++;
     std::thread([fd] {
@@ -351,6 +389,7 @@ int main(int argc, char **argv) {
         for (size_t n = 0; n < (1u << 20);) { ssize_t r = recv(fd, d, sizeof d, 0); if (r <= 0) break; n += r; }
       }
       close(fd);
+      last_active = now_ms();  // before the decrement: main reads conns first, then last_active
       conns--;
     }).detach();
   }

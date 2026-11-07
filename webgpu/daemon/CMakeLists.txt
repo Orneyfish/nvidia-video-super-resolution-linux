@@ -33,7 +33,7 @@ target_compile_options(nvvsr_webd PRIVATE -Wall -Wextra)
 set_target_properties(nvvsr_webd PROPERTIES SKIP_BUILD_RPATH ON SKIP_INSTALL_RPATH ON)
 target_link_options(nvvsr_webd PRIVATE "LINKER:-rpath,${NVVSR_LIBRARY_DIR}" "LINKER:-rpath,$ORIGIN")
 
-option(NVVSR_WEBD_BUILD_TESTS "Build the ctest program (needs the GPU; exits 77 = skip without it)" ON)
+option(NVVSR_WEBD_BUILD_TESTS "Build the ctest program (test_webd needs the GPU, exits 77 = skip without it)" ON)
 if(NVVSR_WEBD_BUILD_TESTS)
   enable_testing()
   execute_process(COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/../../tools/libdir.sh" OUTPUT_VARIABLE NVVSR_TEST_LIBDIR
@@ -49,4 +49,7 @@ if(NVVSR_WEBD_BUILD_TESTS)
   add_test(NAME test_webd COMMAND test_webd)
   # A NVVSR_LIBDIR in the caller's environment wins over the default (the test applies it with setenv overwrite = 0).
   set_tests_properties(test_webd PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 300 ENVIRONMENT "NVVSR_LIBDIR_DEFAULT=${NVVSR_TEST_LIBDIR}")
+  # --idle-exit and socket activation: no GPU, no frames (exit 77 = no systemd-socket-activate)
+  add_test(NAME idle_exit COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/tests/idle_exit.sh" "$<TARGET_FILE:nvvsr_webd>")
+  set_tests_properties(idle_exit PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
 endif()

@@ -1,5 +1,7 @@
-# systemd USER unit for nvvsr_webd (localhost WebSocket daemon of the browser extension). Nothing in this repo installs it.
-# Install: copy to ~/.config/systemd/user/, then `systemctl --user enable --now nvvsr-webd`.
+# systemd USER unit for nvvsr_webd (localhost WebSocket daemon of the browser extension), started by nvvsr-webd.socket on the first
+# connection and exiting by itself after 30 s without one, so libnvvsr's CUDA context (~290 MiB) never keeps the RTX awake.
+# Install: `install/install.sh --with-chrome` copies both units and enables nvvsr-webd.socket (not this service).
+# By hand: copy nvvsr-webd.socket and nvvsr-webd.service to ~/.config/systemd/user/, then `systemctl --user enable --now nvvsr-webd.socket`.
 # Logs (also shows the allowed origins): `journalctl --user -u nvvsr-webd`.
 # More page origins: `systemctl --user edit nvvsr-webd`, then add  [Service] Environment=NVVSR_WEBD_ORIGINS=https://a.example,https://b.example
 # The NVIDIA libraries are found through ~/.config/nvvsr/libdir (or set Environment=NVVSR_LIBDIR=... in the same drop-in).
@@ -7,9 +9,7 @@
 Description=NVIDIA video super resolution daemon (localhost WebSocket)
 
 [Service]
-ExecStart=%h/.local/share/nvvsr/bin/nvvsr_webd 41777 --origin https://www.youtube.com
+ExecStart=%h/.local/share/nvvsr/bin/nvvsr_webd 41777 --idle-exit 30 --origin https://www.youtube.com
+# A clean idle exit (status 0) is not restarted; the socket starts the daemon again on the next connection.
 Restart=on-failure
 RestartSec=2
-
-[Install]
-WantedBy=default.target
