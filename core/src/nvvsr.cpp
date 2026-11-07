@@ -758,7 +758,10 @@ int init_on_big_stack(nvvsr_ctx *ctx, const nvvsr_config &c) {
     started = pthread_attr_setstacksize(&attr, kInitStackBytes) == 0 && pthread_create(&th, &attr, init_thread, &job) == 0;
     pthread_attr_destroy(&attr);
   }
-  if (!started) return ctx->init(c);  // no thread available: best effort on the caller's own stack
+  if (!started) {  // never init on the caller's stack: NGX segfaults on stacks <= 1 MiB, which is why this thread exists
+    set_error("cannot start the init thread");
+    return NVVSR_ERR_INTERNAL;
+  }
   pthread_join(th, nullptr);
   if (job.rc != NVVSR_OK) nvvsr::set_error_str(job.err);  // the error text is thread-local: hand it to the caller
   return job.rc;

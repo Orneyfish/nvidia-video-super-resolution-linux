@@ -27,6 +27,7 @@ nvvsr_exe(test_color)
 nvvsr_exe(test_stress)
 nvvsr_exe(test_timing)
 nvvsr_exe(test_smallstack)
+nvvsr_exe(test_initfail)
 
 # 1. probe + error paths (the first three need no GPU)
 nvvsr_add_test(errors_args test_errors args)
@@ -54,6 +55,8 @@ nvvsr_add_test(timing test_timing)
 
 # 7. create/process/destroy on small thread stacks (hosts like VLC use 1 MiB)
 nvvsr_add_test(smallstack test_smallstack)
+# 8. no init thread -> clean error, never an init on the caller's stack
+nvvsr_add_test(initfail test_initfail)
 
 # Phase 0 smoke test (links the wheel libs directly, needs NVVSR_WHEEL_LIBDIRS)
 if(NVVSR_BUILD_SMOKE)
