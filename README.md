@@ -60,11 +60,12 @@ are untouched. Toggle fullscreen and super resolution switches on by itself.
 
 ## Chrome and Crunchyroll on the NVIDIA GPU
 
-**Crunchyroll** (the castlabs Electron desktop app): `tools/nvcrunchyroll` starts it with its GPU process on the RTX through
-Vulkan (flags in `~/.config/electron-castlab-flags.conf`, copy in `tools/electron-castlab-flags.conf`); it renders correctly.
-Its video is Widevine-protected, so decoding stays in the CDM and its frames cannot be read: no upscaling is possible for it.
-Install: `install -m755 tools/nvcrunchyroll ~/.local/bin/` and point the launcher at it (done on the development machine:
-Hyprland `custom/keybinds.lua` Super+Alt+C; backups `*.bak-nvvsr-<time>`).
+**Crunchyroll** (the castlabs Electron desktop app): `tools/nvcrunchyroll` (experimental, installed nowhere, no launcher uses it)
+starts it with its GPU process on the RTX through Vulkan (flags in `tools/electron-castlab-flags.conf`, to be copied to
+`~/.config/electron-castlab-flags.conf`); it renders correctly. Its video is Widevine-protected, so decoding stays in the CDM
+and its frames cannot be read: no upscaling is possible for it. A client rendering on the NVIDIA GPU crashed Hyprland 0.57.0 on
+2026-10-30, so try this launcher only inside a headless `cage`, never on the live compositor. On the development machine
+Super+Alt+C is back on plain `crunchyroll` and the flags file is set aside (`*.bak-nvvsr-<time>`).
 
 **Chrome: not solved.** `tools/nvchrome` (experimental, not installed, no launcher uses it) gets NVDEC decoding through VA-API
 (`libva-nvidia-driver`; decoder engine 5-11 % on 1080p60) but Chrome then cannot import the decoded frames into its Intel-GL

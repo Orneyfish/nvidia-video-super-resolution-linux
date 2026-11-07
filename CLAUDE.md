@@ -9,7 +9,7 @@ decoded frame → libnvvsr (YUV→RGBA, NvVFX VSR, RGBA→planar) → display-si
 
 ## Hardware facts
 - Hybrid graphics: Intel Iris Xe drives the panel (`eDP-1`, 2560×1440 @ 240 Hz); RTX 3070 Ti Laptop (Ampere sm_86, **8 GB**) is compute only. Driver 615.78.08.
-- Hyprland (Wayland). Distro mpv 0.41.0 (both Arch `extra` and `cachyos-extra-v3`) has **no** `--vf=vapoursynth`: its meson needs a `vapoursynth-script.pc` that VapourSynth R80 no longer ships. We use a private build (`~/.local/opt/mpv-vsr`, via a `.pc` shim); the system mpv is left alone.
+- Hyprland (Wayland). Distro mpv 0.41.0 (both Arch `extra` and `cachyos-extra-v3`) has **no** `--vf=vapoursynth`: its meson needs a `vapoursynth-script.pc` that VapourSynth R80+ (R81 is installed) no longer ships. We use a private build (`~/.local/opt/mpv-vsr`, via a `.pc` shim); the system mpv is left alone.
 - SR engine: `nvidia-vfx` wheel (`--extra-index-url https://pypi.nvidia.com`), VFX SDK 1.3, needs driver ≥570.190.
 
 ## Phase 0 outcome (details: `tools/phase0-results.md`)
