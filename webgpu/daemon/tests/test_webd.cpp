@@ -1,6 +1,6 @@
 // ctest for nvvsr_webd (GPU; exit 77 = skip when libnvvsr is unusable): runs the daemon as a child on an ephemeral port and
 // speaks WebSocket to it. Checks the RFC 6455 accept example, handshake refusals, byte identity with nvvsr_process, garbage
-// and hostile input (the daemon must keep serving), DROP / ordering of back-to-back frames.
+// and hostile input (the daemon must keep serving), DROP / ordering of back-to-back frames, a failed create (bogus NVVSR_LIBDIR).
 #include <arpa/inet.h>
 #include <poll.h>
 #include <signal.h>
@@ -164,19 +164,25 @@ int main() {
   if (int rc = nvvsr_probe()) { printf("test_webd: SKIP: SR unavailable: %s (%s)\n", nvvsr_strerror(rc), nvvsr_last_error()); return 77; }
 
   setenv("NVVSR_WEBD_ORIGINS", "https://env.example,", 1);  // the child reads it (trailing comma = empty entry, ignored)
-  int pfd[2];
-  if (pipe(pfd)) return 1;
-  const pid_t pid = fork();
-  if (pid == 0) {
-    prctl(PR_SET_PDEATHSIG, SIGKILL);
-    dup2(pfd[1], 1);
-    execl(NVVSR_WEBD_BIN, "nvvsr_webd", "0", "--origin", "https://allowed.example", (char *)nullptr);  // plus env.example from the env
-    _exit(127);
-  }
-  close(pfd[1]);
-  char line[64] = {};
-  pollfd pl{pfd[0], POLLIN, 0};
-  if (poll(&pl, 1, 10000) != 1 || read(pfd[0], line, sizeof line - 1) <= 0 || sscanf(line, "LISTENING %d", &PORT) != 1) { printf("daemon did not start\n"); kill(pid, SIGKILL); return 1; }
+  auto start = [](const char *libdir) -> pid_t {  // daemon child on an ephemeral port -> PORT; libdir (if given) replaces NVVSR_LIBDIR
+    int pfd[2];
+    if (pipe(pfd)) return -1;
+    const pid_t p = fork();
+    if (p == 0) {
+      prctl(PR_SET_PDEATHSIG, SIGKILL);
+      dup2(pfd[1], 1);
+      if (libdir) setenv("NVVSR_LIBDIR", libdir, 1);
+      execl(NVVSR_WEBD_BIN, "nvvsr_webd", "0", "--origin", "https://allowed.example", (char *)nullptr);  // plus env.example from the env
+      _exit(127);
+    }
+    close(pfd[1]);
+    char line[64] = {};
+    pollfd pl{pfd[0], POLLIN, 0};
+    if (poll(&pl, 1, 10000) != 1 || read(pfd[0], line, sizeof line - 1) <= 0 || sscanf(line, "LISTENING %d", &PORT) != 1) { printf("daemon did not start\n"); kill(p, SIGKILL); return -1; }
+    return p;
+  };
+  const pid_t pid = start(nullptr);
+  if (pid < 0) return 1;
 
   // 1. handshake: RFC 6455 example, then the refusals
   int fd = dial();
@@ -359,6 +365,26 @@ int main() {
   int st = 0;
   waitpid(pid, &st, 0);
   check(WIFSIGNALED(st) && WTERMSIG(st) == SIGTERM, "daemon was alive until SIGTERM (no crash)");
+
+  // 6. unusable libnvvsr (bogus NVVSR_LIBDIR, no GPU touched): the first frame fails create; the same geometry is then refused at
+  // once without another create (a slow create under the global lock would stall every connection); a new quality tries again.
+  const pid_t pid2 = start("/nonexistent");
+  if (pid2 > 0) {
+    fd = ws_open();
+    const std::string e1 = expect_err(fd, req);
+    close(fd);
+    fd = ws_open();
+    const std::string f1 = expect_err(fd, req), f2 = expect_err(fd, req), f3 = expect_err(fd, request(IW, IH, OW, OH, 4, 0, 9, in));
+    auto tried = [](const std::string &e) { return e.rfind("ERR create:", 0) == 0 && e.find("not retried") == std::string::npos; };
+    check(tried(f1), "bogus libdir: first frame -> ERR create");
+    check(f2.rfind("ERR create:", 0) == 0 && f2.find("not retried") != std::string::npos, "bogus libdir: same geometry again -> ERR at once, no second create");
+    check(tried(f3), "bogus libdir: a new quality tries create again");
+    check(tried(e1), "bogus libdir: another connection is answered (its own first frame is not 'not retried')");
+    close(fd);
+    kill(pid2, SIGTERM);
+    waitpid(pid2, &st, 0);
+    check(WIFSIGNALED(st) && WTERMSIG(st) == SIGTERM, "bogus libdir: daemon alive until SIGTERM");
+  } else check(false, "bogus libdir: daemon started");
   printf("test_webd: %d checks, %d failed\n", checks, fails);
   return fails ? 1 : 0;
 }

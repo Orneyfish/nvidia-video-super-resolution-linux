@@ -9,7 +9,7 @@
 Description=NVIDIA video super resolution daemon (localhost WebSocket)
 
 [Service]
-ExecStart=%h/.local/share/nvvsr/bin/nvvsr_webd 41777 --idle-exit 30 --origin https://www.youtube.com
+ExecStart=%h/.local/share/nvvsr/bin/nvvsr_webd 41777 --idle-exit 30
 # A clean idle exit (status 0) is not restarted; the socket starts the daemon again on the next connection.
 Restart=on-failure
 RestartSec=2

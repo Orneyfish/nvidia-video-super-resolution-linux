@@ -45,5 +45,24 @@ exits_within $pid 3
 wait $pid; rc=$?
 check "non-loopback socket: refused (status 1)" test $rc = 1
 
+# 4. a client dribbling the handshake one byte every 3 s (each recv would restart a per-recv timeout) is cut at the 10 s deadline
+trap '' PIPE   # a write after the daemon closed must not kill this script
+"$bin" 0 --idle-exit 60 >"$tmp/slow.out" 2>&1 &
+pid=$!
+for _ in $(seq 30); do grep -q "^LISTENING" "$tmp/slow.out" && break; sleep 0.1; done
+port=$(sed -n 's/^LISTENING //p' "$tmp/slow.out")
+dribble_closed_s() {   # prints seconds until the daemon closed; 99 = still open after 6 bytes (18 s)
+  local req='GET /vsr' t0=$SECONDS i
+  exec 8<>/dev/tcp/127.0.0.1/$port
+  for ((i = 0; i < ${#req}; i++)); do
+    printf '%s' "${req:i:1}" >&8
+    read -t 3 -u 8 -n 1; [ $? = 142 ] || { echo $((SECONDS - t0)); exec 8>&-; return; }   # 142 = timeout, anything else = closed
+  done
+  echo 99; exec 8>&-
+}
+closed=$(dribble_closed_s)
+check "slow handshake: closed within 12 s (took ${closed} s)" test "$closed" -le 12
+kill $pid; wait $pid 2>/dev/null
+
 echo "idle_exit: $fails failed"
 [ $fails = 0 ]

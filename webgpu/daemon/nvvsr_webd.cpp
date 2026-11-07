@@ -14,8 +14,9 @@
 //
 // Security: any web page can reach 127.0.0.1, and a WebSocket has no same-origin policy, so the handshake refuses a Host that is
 // not loopback (DNS rebinding) and any Origin that is not an extension (browsers always send Origin; a page's is https://...).
-// A content script sends its PAGE's origin: list those exactly with --origin (repeatable) or env NVVSR_WEBD_ORIGINS (comma
-// separated). Each one lets every script on that site use the GPU, so list only sites you mean to upscale.
+// The extension's bridge (an extension-origin iframe) opens the socket, so its Origin is chrome-extension://<id> and no page origin
+// needs listing. Other origins can still be allowed exactly with --origin (repeatable) or env NVVSR_WEBD_ORIGINS (comma
+// separated); each one lets every script on that site use the GPU, so list only sites you mean to upscale.
 // shortcut: a reader and a worker thread per connection, at most 4 connections, no TLS, no auth beyond Origin; upgrade if the
 // daemon ever listens beyond loopback.
 #include <arpa/inet.h>
@@ -105,6 +106,9 @@ static bool send_all(int fd, const void *p, size_t n) {
   }
   return true;
 }
+static int64_t now_ms() {
+  return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
 static void unmask(uint8_t *p, size_t n, const uint8_t k[4]) {
   uint64_t kk; for (int i = 0; i < 8; i++) ((uint8_t *)&kk)[i] = k[i & 3];
   size_t i = 0;
@@ -165,8 +169,8 @@ static void submit(Conn &c, std::vector<uint8_t> msg) {
 static void work(Conn &c) {
   std::vector<uint8_t> sharp_tmp;
   nvvsr_ctx *ctx = nullptr;  // one context for the current geometry/quality/range; recreated on change (the core recycles effects)
-  std::array<int, 6> key{};
-  for (;;) {
+  std::array<int, 6> key{}, failed{};  // failed = key whose create failed (all zero = none; a real key has in_w >= 64)
+  for (;;) try {  // an exception (bad_alloc) ends this connection only, see the catch below
     Job j;
     { std::unique_lock<std::mutex> l(c.mu); c.cv.wait(l, [&] { return c.job || c.done; }); if (c.done) break; j = std::move(*c.job); c.job.reset(); }
     std::string err;
@@ -176,15 +180,16 @@ static void work(Conn &c) {
     {
       std::lock_guard<std::mutex> g(gpu);
       const std::array<int, 6> k{j.iw, j.ih, j.ow, j.oh, j.quality, j.flags & 3};  // range + NV12; the sharpen level is post-processing only
-      if (!ctx || k != key) {
+      if (k == failed) err = "create: failed before for this geometry (not retried)";  // no slow create under the global lock per frame
+      else if (!ctx || k != key) {
         nvvsr_destroy(ctx); ctx = nullptr;
         nvvsr_config cfg; nvvsr_config_init(&cfg);
         cfg.in_w = j.iw; cfg.in_h = j.ih; cfg.out_w = j.ow; cfg.out_h = j.oh;
         cfg.quality = j.quality ? j.quality : NVVSR_QUALITY_AUTO;
         cfg.in_format = nv12 ? NVVSR_IN_NV12 : NVVSR_IN_I420; cfg.out_format = NVVSR_OUT_I420; cfg.full_range = j.flags & 1;
-        if (nvvsr_create(&cfg, &ctx) != NVVSR_OK) err = std::string("create: ") + nvvsr_last_error(); else key = k;
+        if (nvvsr_create(&cfg, &ctx) != NVVSR_OK) { err = std::string("create: ") + nvvsr_last_error(); failed = k; } else key = k;
       }
-      if (ctx) {
+      if (ctx && err.empty()) {
         out.assign(16 + (size_t)j.ow * j.oh * 3 / 2, 0);
         nvvsr_image_in in{};
         in.plane[0] = j.msg.data() + 16; in.stride[0] = j.iw;
@@ -195,7 +200,7 @@ static void work(Conn &c) {
         o.plane[1] = o.plane[0] + (size_t)j.ow * j.oh; o.stride[1] = j.ow / 2;
         o.plane[2] = o.plane[1] + (size_t)(j.ow / 2) * (j.oh / 2); o.stride[2] = j.ow / 2;
         nvvsr_timing t{};
-        if (nvvsr_process(ctx, &in, &o) != NVVSR_OK) err = std::string("process: ") + nvvsr_last_error();
+        if (nvvsr_process(ctx, &in, &o) != NVVSR_OK) { err = std::string("process: ") + nvvsr_last_error(); nvvsr_destroy(ctx); ctx = nullptr; }  // next frame starts fresh
         else { nvvsr_last_timing(ctx, &t); ms = (float)t.total_ms; }
       }
     }
@@ -206,18 +211,21 @@ static void work(Conn &c) {
     const uint16_t w = j.ow, h = j.oh, s = j.seq;  // little endian host assumed (x86/arm64 Linux)
     memcpy(&out[4], &w, 2); memcpy(&out[6], &h, 2); memcpy(&out[8], &s, 2); memcpy(&out[12], &ms, 4);
     c.send_frame(2, out.data(), out.size());
-  }
+  } catch (...) { shutdown(c.fd, SHUT_RDWR); break; }  // the reader sees EOF and ends the connection; ctx is freed below
   std::lock_guard<std::mutex> g(gpu);
   nvvsr_destroy(ctx);
 }
 
 // ------------------------------------------------------------------ WebSocket
 static bool handshake(Conn &c) {
-  timeval tv{10, 0};
-  setsockopt(c.fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);  // a silent client must not hold a connection slot
   std::string req;
-  for (char ch; req.size() < 8192 && (req.size() < 4 || req.compare(req.size() - 4, 4, "\r\n\r\n")); req += ch)
-    if (recv(c.fd, &ch, 1, 0) != 1) return false;  // byte at a time: nothing past the blank line is consumed
+  const int64_t t0 = now_ms();
+  for (char ch; req.size() < 8192 && (req.size() < 4 || req.compare(req.size() - 4, 4, "\r\n\r\n")); req += ch) {
+    // One 10 s deadline for the whole request: a client dribbling bytes must not hold a connection slot either.
+    pollfd pf{c.fd, POLLIN, 0};
+    const int64_t left = 10000 - (now_ms() - t0);
+    if (left <= 0 || poll(&pf, 1, (int)left) != 1 || recv(c.fd, &ch, 1, 0) != 1) return false;  // byte at a time: nothing past the blank line is consumed
+  }
   auto reject = [&](const char *status) {
     std::string r = std::string("HTTP/1.1 ") + status + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
     send_all(c.fd, r.data(), r.size());
@@ -250,7 +258,7 @@ static bool handshake(Conn &c) {
   if ((host != "127.0.0.1" && host != "localhost" && host != "[::1]") || (has_origin && !ext)) return reject("403 Forbidden");
   const std::string r = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: " +
                         b64(sha1(hd["sec-websocket-key"] + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")) + "\r\n\r\n";
-  tv = {5, 0};
+  timeval tv{5, 0};
   setsockopt(c.fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof tv);
   tv = {0, 0};
   setsockopt(c.fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);  // idle (paused video) is fine once upgraded
@@ -311,9 +319,6 @@ static void read_loop(Conn &c) {
 
 static std::atomic<int> conns{0};
 static std::atomic<int64_t> last_active{0};  // steady-clock ms of start / accept / the end of the latest connection
-static int64_t now_ms() {
-  return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
-}
 
 int main(int argc, char **argv) {
   signal(SIGPIPE, SIG_IGN);
@@ -372,25 +377,29 @@ int main(int argc, char **argv) {
     if (fd < 0) { if (errno != EINTR && errno != EAGAIN) usleep(10000); continue; }
     if (conns >= MAX_CONNS) { close(fd); continue; }
     conns++;
-    std::thread([fd] {
-      Conn c;
-      c.fd = fd;
-      if (handshake(c)) {
-        std::thread w(work, std::ref(c));
-        read_loop(c);
-        { std::lock_guard<std::mutex> l(c.mu); c.done = true; }
-        c.cv.notify_one();
-        w.join();
-        // Unread input at close() would turn into an RST that eats our close frame: finish the close, drain a little.
-        shutdown(fd, SHUT_WR);
-        timeval tv{1, 0};
-        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
-        uint8_t d[4096];
-        for (size_t n = 0; n < (1u << 20);) { ssize_t r = recv(fd, d, sizeof d, 0); if (r <= 0) break; n += r; }
-      }
-      close(fd);
-      last_active = now_ms();  // before the decrement: main reads conns first, then last_active
-      conns--;
-    }).detach();
+    try {
+      std::thread([fd] {
+        try {  // a thread or allocation failure must end this connection only, not the daemon (uncaught = std::terminate)
+          Conn c;
+          c.fd = fd;
+          if (handshake(c)) {
+            std::thread w(work, std::ref(c));
+            try { read_loop(c); } catch (...) {}  // w is joinable here: it must be joined whatever read_loop does
+            { std::lock_guard<std::mutex> l(c.mu); c.done = true; }
+            c.cv.notify_one();
+            w.join();
+            // Unread input at close() would turn into an RST that eats our close frame: finish the close, drain a little.
+            shutdown(fd, SHUT_WR);
+            timeval tv{1, 0};
+            setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
+            uint8_t d[4096];
+            for (size_t n = 0; n < (1u << 20);) { ssize_t r = recv(fd, d, sizeof d, 0); if (r <= 0) break; n += r; }
+          }
+        } catch (...) {}
+        close(fd);
+        last_active = now_ms();  // before the decrement: main reads conns first, then last_active
+        conns--;
+      }).detach();
+    } catch (...) { close(fd); conns--; }  // could not start the thread
   }
 }
