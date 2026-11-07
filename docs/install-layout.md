@@ -33,7 +33,10 @@ in the prefix wherever the file is copied to (the installer checks it with `ldd`
 | `~/.local/bin/vlc-sr` | sets `VLC_PLUGIN_PATH=<data>/vlc/plugins` and execs `vlc` (does not shadow `vlc`) | backed up, replaced |
 | `<data>/vlc/plugins/video_output/libnvvsr_plugin.so` | the VLC module | backed up, replaced |
 | `~/.local/share/applications/org.nvvsr.Control.desktop` (+ icon in `~/.local/share/icons/hicolor/scalable/apps/`) | the panel's launcher, `Exec=<prefix>/bin/nvcontrol`; `--with-panel` only, written by `panel/install-launcher.sh --bin --home` | replaced |
-| `<config>/systemd/user/nvvsr-webd.service` | the daemon's systemd user unit, `ExecStart=<prefix>/bin/nvvsr_webd 41777 --origin https://www.youtube.com`; `--with-chrome` only. Installing runs `systemctl --user daemon-reload` and `enable --now nvvsr-webd.service`; if that fails the component is still installed, with a warning and the two commands to run | replaced |
+| `<config>/systemd/user/nvvsr-webd.service` | the daemon's systemd user unit, `ExecStart=<prefix>/bin/nvvsr_webd 41777 --idle-exit 30 --origin https://www.youtube.com`; `--with-chrome` only. Installing runs `systemctl --user daemon-reload`, `disable --now nvvsr-webd.service` (an old install enabled it) and `enable --now nvvsr-webd.socket`; if that fails the component is still installed, with a warning and the commands to run | replaced |
+| `<config>/systemd/user/nvvsr-webd.socket` | the systemd user socket (`ListenStream=127.0.0.1:41777`), copied unchanged from `webgpu/daemon/`; `--with-chrome` only, mode 644 | replaced |
+
+The webd component is two units: the socket listens on 127.0.0.1:41777 and starts the service on the first connection; the service exits after 30 s idle, so the RTX stays asleep when no page uses it. Only the socket is enabled. Uninstall disables both.
 
 The legacy Chrome handoff was removed from the installer; it never writes under `<config>/google-chrome`.
 
@@ -74,14 +77,14 @@ nothing. Readers must ignore unknown keys.
     "vlc_plugin_dir": "<data>/vlc/plugins", "mpv_dir": "<prefix>/mpv", "mpv_script": "<prefix>/mpv/vsr.lua",
     "mpv_wrapper": "~/.local/bin/mpv-sr", "vlc_wrapper": "~/.local/bin/vlc-sr", "private_mpv": "~/.local/opt/mpv-vsr/bin/mpv",
     "vsr_conf": "<config>/mpv/script-opts/vsr.conf", "libdir_file": "<config>/nvvsr/libdir", "vfx": "<prefix>/vfx",
-    "vapoursynth_toml": "<config>/vapoursynth/vapoursynth.toml", "webd": "<prefix>/bin/nvvsr_webd", "webd_unit": "<config>/systemd/user/nvvsr-webd.service", "install_json": "<prefix>/install.json"
+    "vapoursynth_toml": "<config>/vapoursynth/vapoursynth.toml", "webd": "<prefix>/bin/nvvsr_webd", "webd_unit": "<config>/systemd/user/nvvsr-webd.service", "webd_socket": "<config>/systemd/user/nvvsr-webd.socket", "install_json": "<prefix>/install.json"
   },
   "private_mpv": { "path": "...", "vapoursynth": true, "built_by_installer": false },
   "wheel": { "name": "nvidia-vfx", "sha256": "0252866a...", "installed": true },
   "components": {                          // status: installed | partial | skipped | failed
     "core": {"status": "installed", "detail": "..."}, "vapoursynth": {...}, "mpv": {...}, "vlc": {...},
     "wheel": {...}, "panel": {...},
-    "webd": {"status": "installed", "detail": "nvvsr_webd <prefix>/bin/nvvsr_webd; unit <config>/systemd/user/nvvsr-webd.service; service_enabled=true"}
+    "webd": {"status": "installed", "detail": "nvvsr_webd <prefix>/bin/nvvsr_webd; unit <config>/systemd/user/nvvsr-webd.service; socket <config>/systemd/user/nvvsr-webd.socket; service_enabled=true"}
   },
   "entries": [                             // everything created or changed, in order; uninstall walks it backwards
     { "type": "dir|file|symlink|line|tree", "path": "/abs", "component": "mpv",
@@ -109,7 +112,7 @@ only if it has `nvvfx/libs`; `build`; always inside the prefix).
 - trees go; directories go if empty (a `plugins.dat` VLC left in a plugin directory we created is deleted first);
 - with the panel component present, `panel/install-launcher.sh --uninstall --home <home>` removes the desktop entry and
   icon first (they are not in `entries`; `nvcontrol` itself is an ordinary file entry);
-- with the webd component present, `systemctl --user disable --now nvvsr-webd.service` and `daemon-reload` run first (failures are ignored); the unit and binary are ordinary file entries;
+- with the webd component present, `systemctl --user disable --now nvvsr-webd.socket nvvsr-webd.service` and `daemon-reload` run first (failures are ignored); the two units and the binary are ordinary file entries;
 - the manifest goes last; `~/.local/opt/mpv-vsr` stays unless `--purge-mpv`; a manifest entry outside its recorded
   `home` or containing `..` makes the uninstall refuse.
 

@@ -59,7 +59,7 @@ Options
   --build-mpv            build the private mpv with install/build-mpv-vsr.sh when it is missing or lacks vapoursynth
   --with-panel           also build nvcontrol (panel/, C++), install it under <prefix>/bin and run its launcher
   --with-chrome          also build nvvsr_webd (webgpu/daemon/, the Chrome upscaling daemon), install it under <prefix>/bin and
-                         enable its systemd user service nvvsr-webd.service
+                         enable its systemd user socket nvvsr-webd.socket (the service starts on the first connection)
   --purge-mpv            uninstall: also delete the private mpv tree
   -h, --help             this text
 
@@ -711,10 +711,10 @@ step_panel() {
 # nvvsr_webd (webgpu/daemon/, the Chrome upscaling daemon) goes to <prefix>/bin, its systemd user unit to the config home.
 # NVVSR_WEBD_BIN names an existing executable to install instead of building (tests).
 WEBD_BUILD=$REPO/build/webd
-WEBD_UNIT_NAME=nvvsr-webd.service
+WEBD_UNIT_NAME=nvvsr-webd.service WEBD_SOCKET_NAME=nvvsr-webd.socket
 step_webd() {
   local src target=$PREFIX/bin/nvvsr_webd unit=$CONFIG_HOME/systemd/user/nvvsr-webd.service log=$STATE/webd-build.log
-  local enabled=true
+  local sock=$CONFIG_HOME/systemd/user/nvvsr-webd.socket enabled=true
   if [ -n "${NVVSR_WEBD_BIN:-}" ] && [ -x "$NVVSR_WEBD_BIN" ]; then
     src=$NVVSR_WEBD_BIN
   else
@@ -729,18 +729,24 @@ step_webd() {
   install_file "$src" "$target" 755 webd || { step_failed webd "cannot install $target"; return 1; }
   sed "s|%h/.local/share/nvvsr/bin/nvvsr_webd|$target|" "$REPO/webgpu/daemon/nvvsr-webd.service" >"$STATE/gen-webd-unit"
   install_file "$STATE/gen-webd-unit" "$unit" 644 webd || { step_failed webd "cannot install $unit"; return 1; }
+  install_file "$REPO/webgpu/daemon/nvvsr-webd.socket" "$sock" 644 webd || { step_failed webd "cannot install $sock"; return 1; }
   set_path webd "$target"
   set_path webd_unit "$unit"
+  set_path webd_socket "$sock"
+  # an old install enabled the service, which holds port 41777 all session: disable it so the socket can bind
   act systemctl "--user daemon-reload"
-  act systemctl "--user enable --now $WEBD_UNIT_NAME"
+  act systemctl "--user disable --now $WEBD_UNIT_NAME"
+  act systemctl "--user enable --now $WEBD_SOCKET_NAME"
   if [ "$DRY" = 0 ]; then
-    if ! { have systemctl && systemctl --user daemon-reload && systemctl --user enable --now "$WEBD_UNIT_NAME"; } >/dev/null 2>&1; then
+    if ! { have systemctl && systemctl --user daemon-reload && { systemctl --user disable --now "$WEBD_UNIT_NAME" >/dev/null 2>&1 || true; } &&
+           systemctl --user enable --now "$WEBD_SOCKET_NAME"; } >/dev/null 2>&1; then
       enabled=false
-      warn "webd: the service was not enabled (no systemd user manager?). Run these two commands:"
+      warn "webd: the socket was not enabled (no systemd user manager?). Run these commands:"
       say "  systemctl --user daemon-reload"
-      say "  systemctl --user enable --now $WEBD_UNIT_NAME"
+      say "  systemctl --user disable --now $WEBD_UNIT_NAME"
+      say "  systemctl --user enable --now $WEBD_SOCKET_NAME"
     fi
-    set_comp webd installed "nvvsr_webd $target; unit $unit; service_enabled=$enabled"
+    set_comp webd installed "nvvsr_webd $target; unit $unit; socket $sock; service_enabled=$enabled"
   fi
 }
 
@@ -940,10 +946,10 @@ run_uninstall() {
     if [ "$DRY" = 0 ]; then bash "$PANEL_LAUNCHER" --uninstall --home "$HOME_DIR" || warn "panel launcher could not be removed"; fi
   fi
   if [ -n "${CSTAT[webd]:-}" ] && [ "${CSTAT[webd]}" != skipped ]; then   # the unit is removed with the manifest; stop it first
-    act systemctl "--user disable --now $WEBD_UNIT_NAME"
+    act systemctl "--user disable --now $WEBD_SOCKET_NAME $WEBD_UNIT_NAME"
     act systemctl "--user daemon-reload"
     if [ "$DRY" = 0 ] && have systemctl; then
-      systemctl --user disable --now "$WEBD_UNIT_NAME" >/dev/null 2>&1 || true
+      systemctl --user disable --now "$WEBD_SOCKET_NAME" "$WEBD_UNIT_NAME" >/dev/null 2>&1 || true
       systemctl --user daemon-reload >/dev/null 2>&1 || true
     fi
   fi

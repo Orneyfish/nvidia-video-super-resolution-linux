@@ -411,14 +411,16 @@ printf '#!/bin/sh\necho fake nvvsr_webd\n' >"$WB/nvvsr_webd"; chmod 755 "$WB/nvv
 SYSD=$SCR/sysdshim; mkdir -p "$SYSD"; SYSLOG=$SCR/systemctl.log
 printf '#!/bin/sh\necho "$*" >>"%s"\n[ -e "%s" ] && exit 1\nexit 0\n' "$SYSLOG" "$SCR/systemctl.fail" >"$SYSD/systemctl"
 chmod 755 "$SYSD/systemctl"
-H8=$SCR/h8; P8=$H8/.local/share/nvvsr; UNIT8=$H8/.config/systemd/user/nvvsr-webd.service; mkdir -p "$H8"
+H8=$SCR/h8; P8=$H8/.local/share/nvvsr; UNIT8=$H8/.config/systemd/user/nvvsr-webd.service; SOCK8=$H8/.config/systemd/user/nvvsr-webd.socket; mkdir -p "$H8"
 snap "$H8" "$SCR/h8.before"
 PATH=$SYSD:$PATH run "$SCR/d0.log" install --home "$H8" --no-mpv --no-vlc --skip-wheel --with-chrome --dry-run
 eq "webd dry run: exit 0" "$RC" 0
 dl() { grep -n -- "$1" "$SCR/d0.log" | head -n 1 | cut -d: -f1; }
 b=$(dl "would build .*webd"); i=$(dl "would \(install\|create\) .*bin/nvvsr_webd"); c=$(dl "would create .*systemd/user/nvvsr-webd.service")
-r=$(dl "would systemctl --user daemon-reload"); e=$(dl "would systemctl --user enable --now nvvsr-webd.service")
-if [ -n "$b$i$c$r$e" ] && [ "$b" -lt "$i" ] && [ "$i" -lt "$c" ] && [ "$c" -lt "$r" ] && [ "$r" -lt "$e" ]; then ok "webd dry run: build, binary, unit, daemon-reload, enable in that order"
+s=$(dl "would create .*systemd/user/nvvsr-webd.socket")
+r=$(dl "would systemctl --user daemon-reload"); d=$(dl "would systemctl --user disable --now nvvsr-webd.service")
+e=$(dl "would systemctl --user enable --now nvvsr-webd.socket")
+if [ -n "$b$i$c$s$r$d$e" ] && [ "$b" -lt "$i" ] && [ "$i" -lt "$c" ] && [ "$c" -lt "$s" ] && [ "$s" -lt "$r" ] && [ "$r" -lt "$d" ] && [ "$d" -lt "$e" ]; then ok "webd dry run: build, binary, service unit, socket unit, daemon-reload, disable service, enable socket in that order"
 else bad "webd dry run: plan order"; fi
 snap "$H8" "$SCR/h8.dry"
 eq "webd dry run: writes nothing" "$(diff "$SCR/h8.before" "$SCR/h8.dry" | wc -l)" 0
@@ -426,24 +428,37 @@ rm -f "$SYSLOG"
 NVVSR_WEBD_BIN=$WB/nvvsr_webd PATH=$SYSD:$PATH run "$SCR/d1.log" install --home "$H8" --no-mpv --no-vlc --skip-wheel --with-chrome --yes
 eq "webd install: exit 0" "$RC" 0
 t "webd install: binary equals the fake daemon" cmp -s "$WB/nvvsr_webd" "$P8/bin/nvvsr_webd"
-has "$UNIT8" "^ExecStart=$P8/bin/nvvsr_webd 41777 --origin https://www.youtube.com$" && ok "webd install: unit ExecStart uses the prefix" || bad "webd install: ExecStart"
+has "$UNIT8" "^ExecStart=$P8/bin/nvvsr_webd 41777 --idle-exit 30 --origin https://www.youtube.com$" && ok "webd install: unit ExecStart uses the prefix" || bad "webd install: ExecStart"
 has "$SYSLOG" "^--user daemon-reload$" && ok "webd install: systemctl --user daemon-reload called" || bad "webd install: daemon-reload"
-has "$SYSLOG" "^--user enable --now nvvsr-webd.service$" && ok "webd install: systemctl --user enable --now called" || bad "webd install: enable"
+has "$SYSLOG" "^--user enable --now nvvsr-webd.socket$" && ok "webd install: systemctl --user enable --now nvvsr-webd.socket called" || bad "webd install: enable socket"
+dis=$(grep -n "^--user disable --now nvvsr-webd.service$" "$SYSLOG" | head -n 1 | cut -d: -f1)
+en=$(grep -n "^--user enable --now nvvsr-webd.socket$" "$SYSLOG" | head -n 1 | cut -d: -f1)
+if [ -n "$dis$en" ] && [ "$dis" -lt "$en" ]; then ok "webd install: old service disabled (--now) before the socket is enabled"; else bad "webd install: disable before enable"; fi
+cmp -s "$REPO/webgpu/daemon/nvvsr-webd.socket" "$SOCK8" && ok "webd install: socket unit is the repo file" || bad "webd install: socket content"
+eq "webd install: socket unit mode 644" "$(stat -c %a "$SOCK8")" 644
 jq -e '.components.webd.status == "installed" and (.components.webd.detail | contains("service_enabled=true"))' "$P8/install.json" >/dev/null \
   && ok "webd install: install.json has webd installed, service_enabled=true" || bad "webd install: install.json"
+jq -e '.paths.webd_socket | endswith("/nvvsr-webd.socket")' "$P8/install.json" >/dev/null && ok "webd install: install.json paths.webd_socket" || bad "webd install: paths.webd_socket"
+echo "== 13d (cont.). a second install run with the same home changes no unit, socket or binary"
+sha256sum "$UNIT8" "$SOCK8" "$P8/bin/nvvsr_webd" >"$SCR/webd-units.before"
+NVVSR_WEBD_BIN=$WB/nvvsr_webd PATH=$SYSD:$PATH run "$SCR/d1b.log" install --home "$H8" --no-mpv --no-vlc --skip-wheel --with-chrome --yes
+eq "webd second install: exit 0" "$RC" 0
+sha256sum "$UNIT8" "$SOCK8" "$P8/bin/nvvsr_webd" >"$SCR/webd-units.after"
+t "webd second install: unit, socket and binary hashes unchanged" cmp -s "$SCR/webd-units.before" "$SCR/webd-units.after"
+f "webd second install: no create or replace of a webd file" has "$SCR/d1b.log" "^  \(create\|replace\) .*nvvsr-webd"
 echo "== 13d (cont.). the same home with a failing systemctl: a warning, the component stays installed, exit 0"
 touch "$SCR/systemctl.fail"
 NVVSR_WEBD_BIN=$WB/nvvsr_webd PATH=$SYSD:$PATH run "$SCR/d2.log" install --home "$H8" --no-mpv --no-vlc --skip-wheel --with-chrome --yes
 rm -f "$SCR/systemctl.fail"
 eq "webd failing systemctl: exit 0" "$RC" 0
-has "$SCR/d2.log" "webd: the service was not enabled" && has "$SCR/d2.log" "systemctl --user enable --now nvvsr-webd.service" \
-  && ok "webd failing systemctl: warning with the two commands" || bad "webd failing systemctl: warning"
+has "$SCR/d2.log" "webd: the socket was not enabled" && has "$SCR/d2.log" "systemctl --user enable --now nvvsr-webd.socket" \
+  && ok "webd failing systemctl: warning with the socket commands" || bad "webd failing systemctl: warning"
 jq -e '.components.webd.status == "installed" and (.components.webd.detail | contains("service_enabled=false"))' "$P8/install.json" >/dev/null \
   && ok "webd failing systemctl: still installed, service_enabled=false" || bad "webd failing systemctl: install.json"
 rm -f "$SYSLOG"
 PATH=$SYSD:$PATH run "$SCR/d3.log" uninstall --home "$H8" --yes; eq "webd uninstall: exit 0" "$RC" 0
-has "$SYSLOG" "^--user disable --now nvvsr-webd.service$" && ok "webd uninstall: systemctl --user disable --now called" || bad "webd uninstall: disable"
-f "webd uninstall: unit and binary removed" test -e "$UNIT8" -o -e "$P8/bin/nvvsr_webd"
+has "$SYSLOG" "^--user disable --now nvvsr-webd.socket nvvsr-webd.service$" && ok "webd uninstall: systemctl --user disable --now socket and service" || bad "webd uninstall: disable"
+f "webd uninstall: both unit files and binary removed" test -e "$UNIT8" -o -e "$SOCK8" -o -e "$P8/bin/nvvsr_webd"
 # regression: the daemon build must link against the installed core ($LIB_DIR), not the core's build tree (which has no library after an install)
 grep -q 'webgpu/daemon.*-DNVVSR_CORE_BUILD_DIR="\$LIB_DIR"' "$REPO/install/install.sh" && ok "webd build: links against the installed core library directory" || bad "webd build: NVVSR_CORE_BUILD_DIR"
 
