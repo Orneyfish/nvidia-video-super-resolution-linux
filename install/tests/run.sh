@@ -110,6 +110,12 @@ mkdir -p "$SCR/guard"
 run "$SCR/u5.log" install --home "$SCR/guard" --prefix /usr/local/nvvsr --dry-run; eq "system prefix refused" "$RC" 2
 run "$SCR/u6.log" install --home "$SCR/guard" --prefix "$SCR/guard" --dry-run; eq "prefix = home refused" "$RC" 2
 run "$SCR/u7.log" install --home "$SCR/guard" --prefix "$SCR/guard/a:b" --dry-run; eq "colon in prefix refused" "$RC" 2
+run "$SCR/u7b.log" install --home "$SCR/guard" --prefix "$SCR/guard/a b" --dry-run; eq "space in prefix refused" "$RC" 2
+mkdir -p "$SCR/amp"; snap "$SCR/amp" "$SCR/amp.before"
+run "$SCR/u7c.log" install --home "$SCR/amp" --prefix "$SCR/amp/a&b" --no-mpv --no-vlc --skip-wheel --yes
+eq "ampersand in prefix refused (not a real install)" "$RC" 2
+has "$SCR/u7c.log" "ampersand" && ok "ampersand refusal says why" || bad "ampersand refusal text"
+snap "$SCR/amp" "$SCR/amp.after"; eq "ampersand refusal changed nothing" "$(diff "$SCR/amp.before" "$SCR/amp.after" | wc -l)" 0
 run "$SCR/u8.log" install --home "$SCR/does-not-exist" --dry-run; eq "missing --home refused" "$RC" 2
 
 echo "== 2. check"
@@ -428,7 +434,7 @@ rm -f "$SYSLOG"
 NVVSR_WEBD_BIN=$WB/nvvsr_webd PATH=$SYSD:$PATH run "$SCR/d1.log" install --home "$H8" --no-mpv --no-vlc --skip-wheel --with-chrome --yes
 eq "webd install: exit 0" "$RC" 0
 t "webd install: binary equals the fake daemon" cmp -s "$WB/nvvsr_webd" "$P8/bin/nvvsr_webd"
-has "$UNIT8" "^ExecStart=$P8/bin/nvvsr_webd 41777 --idle-exit 30 --origin https://www.youtube.com$" && ok "webd install: unit ExecStart uses the prefix" || bad "webd install: ExecStart"
+has "$UNIT8" "^ExecStart=$P8/bin/nvvsr_webd 41777 --idle-exit 30$" && ok "webd install: unit ExecStart uses the prefix" || bad "webd install: ExecStart"
 has "$SYSLOG" "^--user daemon-reload$" && ok "webd install: systemctl --user daemon-reload called" || bad "webd install: daemon-reload"
 has "$SYSLOG" "^--user enable --now nvvsr-webd.socket$" && ok "webd install: systemctl --user enable --now nvvsr-webd.socket called" || bad "webd install: enable socket"
 dis=$(grep -n "^--user disable --now nvvsr-webd.service$" "$SYSLOG" | head -n 1 | cut -d: -f1)

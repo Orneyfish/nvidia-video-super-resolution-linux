@@ -108,11 +108,12 @@ parse_args() {
 HOME_DIR="" CONFIG_HOME="" DATA_HOME="" BIN_DIR="" PREFIX="" BUILD_DIR="" NVVSR_CONF_DIR="" VS_TOML=""
 MPV_CONF_DIR="" VLC_PLUGIN_DIR="" MPV_BIN="" VFX="" LIB_DIR="" MPV_DIR="" MANIFEST="" JOBS=2
 
-# A path ends up in scripts, RUNPATH, mpv's --script list, JSON and the libdir file: keep it to a safe alphabet.
+# A path ends up in scripts, RUNPATH, mpv's --script list, JSON, the libdir file and a systemd ExecStart (whitespace splits
+# words, & breaks the sed in step_webd): keep it to a safe alphabet.
 check_path_chars() { # label path
   case $2 in /*) ;; *) die "$1 must be an absolute path: $2" 2 ;; esac
-  if [[ $2 =~ [[:cntrl:]] ]] || [[ $2 == *[:,\"\\\|]* ]]; then
-    die "$1 contains a character that is not allowed (control, colon, comma, quote, backslash, bar): $2" 2
+  if [[ $2 =~ [[:cntrl:][:space:]] ]] || [[ $2 == *[:,\"\\\|\&]* ]]; then
+    die "$1 contains a character that is not allowed (control, space, ampersand, colon, comma, quote, backslash, bar): $2" 2
   fi
 }
 
